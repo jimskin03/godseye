@@ -1,0 +1,27 @@
+FROM node:26-alpine AS dependencies
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM dependencies AS builder
+ARG GOOGLE_MAPS_API_KEY
+ARG CESIUM_ION_TOKEN
+ENV GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+ENV CESIUM_ION_TOKEN=${CESIUM_ION_TOKEN}
+COPY . .
+RUN npm run build
+
+FROM node:26-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+RUN apk add --no-cache dumb-init
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/vite.config.js ./vite.config.js
+COPY --from=builder /app/src ./src
+EXPOSE 5173
+HEALTHCHECK --interval=20s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://127.0.0.1:5173/ || exit 1
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["./node_modules/.bin/vite", "preview", "--host", "0.0.0.0", "--port", "5173"]

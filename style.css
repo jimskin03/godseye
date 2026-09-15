@@ -9161,3 +9161,405 @@ body.scene-playback-mode #first-run-launcher {
   /* Scrolling a tile into view must not animate either. */
   .first-run-choices { scroll-behavior: auto; }
 }
+
+/* Mobile-only compact labels are opt-in; desktop keeps the established copy. */
+#command-dock .dock-label-mobile { display: none; }
+
+/* ── Mobile command sheets ─────────────────────
+   The desktop tray uses one horizontal city ribbon and a floating pin. On a
+   phone that made the shell look correct while its controls extended more than
+   1,100px off-screen. Keep every action inside a viewport-bounded, vertically
+   scrollable sheet and use touch-sized controls. */
+@media (max-width: 620px) {
+  #command-dock .dock-popover-content,
+  #command-dock #control-panel .dock-popover-content {
+    box-sizing: border-box;
+    width: calc(100vw - 1.5rem);
+    max-height: min(62dvh, 32rem);
+    padding: 3.25rem 0.75rem 0.75rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  #command-dock #location-bar .dock-popover-content {
+    left: calc((var(--dock-unified-width) - (100vw - 1.5rem)) / 2);
+  }
+
+  #command-dock #control-panel .dock-popover-content {
+    right: calc((var(--dock-unified-width) - (100vw - 1.5rem)) / 2);
+  }
+
+  #command-dock .dock-pin-btn,
+  #command-dock #location-bar .dock-pin-btn,
+  #command-dock #control-panel .dock-pin-btn {
+    top: 0.55rem;
+    right: 0.55rem;
+    width: 2.75rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  #command-dock #location-bar:not(.collapsed) .dock-popover-content .location-city-row {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.65rem;
+    width: 100%;
+    min-width: 0;
+  }
+
+  #command-dock .location-search-wrap {
+    order: -1;
+    display: grid;
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  #command-dock .search-toggle-btn,
+  #command-dock #location-search,
+  #command-dock #location-search.expanded {
+    box-sizing: border-box;
+    min-height: 2.75rem;
+    height: 2.75rem;
+  }
+
+  #command-dock .search-toggle-btn {
+    width: 2.75rem;
+  }
+
+  #command-dock #location-search,
+  #command-dock #location-search.expanded {
+    width: 100%;
+    min-width: 0;
+  }
+
+  #command-dock .location-pills {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  #command-dock .location-pill {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0.55rem 0.45rem;
+    white-space: normal;
+    line-height: 1.2;
+  }
+
+  #command-dock .map-stack-chip {
+    min-height: 2.75rem;
+    white-space: normal;
+    line-height: 1.2;
+  }
+
+  #command-dock #control-panel:not(.collapsed) .dock-popover-content .button-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-height: 0;
+  }
+
+  #command-dock .dock-popover-content .style-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 3.7rem;
+  }
+}
+
+/* Desktop keeps the two established rails in their original layout. The wrapper
+   becomes a real drawer only at phone widths. */
+#mobile-controls {
+  display: contents;
+}
+
+#mobile-controls-toggle {
+  display: none;
+}
+
+#location-bar-toggle {
+  appearance: none;
+  cursor: pointer;
+}
+
+@media (max-width: 620px) {
+  #mobile-controls-toggle {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 4.25rem);
+    right: max(0.75rem, env(safe-area-inset-right));
+    z-index: 161;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.5rem 0.7rem;
+    color: var(--text-primary);
+    background: rgba(8, 20, 30, 0.94);
+    border: 1px solid var(--glass-border-hover);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.6rem 1.8rem rgba(0, 0, 0, 0.46);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08rem;
+  }
+
+  #mobile-controls-toggle[aria-expanded='true'] {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  #mobile-controls {
+    display: none;
+  }
+
+  #mobile-controls.mobile-controls-open {
+    position: fixed;
+    z-index: 160;
+    inset:
+      calc(env(safe-area-inset-top) + 7.5rem)
+      max(0.75rem, env(safe-area-inset-right))
+      calc(env(safe-area-inset-bottom) + 6.4rem)
+      max(0.75rem, env(safe-area-inset-left));
+    display: block;
+    box-sizing: border-box;
+    padding: 0.65rem;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    background: rgba(7, 18, 27, 0.96);
+    border: 1px solid rgba(123, 189, 211, 0.38);
+    border-radius: 0.65rem;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.62);
+    backdrop-filter: blur(26px) saturate(1.25);
+    -webkit-backdrop-filter: blur(26px) saturate(1.25);
+  }
+
+  #mobile-controls #left-panel-stack,
+  #mobile-controls #right-context-rail {
+    position: static;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    width: 100% !important;
+    max-height: none;
+    overflow: visible;
+  }
+
+  #mobile-controls #right-context-rail {
+    margin-top: 0.55rem;
+  }
+
+  #mobile-controls :is(
+    #data-panel,
+    #cctv-panel,
+    #scene-panel,
+    #global-context-panel,
+    #pp-toggles
+  ),
+  #mobile-controls :is(
+    #data-panel,
+    #cctv-panel,
+    #scene-panel,
+    #global-context-panel,
+    #pp-toggles
+  ).collapsed {
+    position: relative !important;
+    inset: auto !important;
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: none;
+  }
+
+  #mobile-controls :is(.panel-header, .pp-header-row) {
+    min-height: 44px;
+  }
+
+  #mobile-controls :is(.data-panel-inner, .cctv-panel-inner, .scene-panel-inner, .global-context-panel-inner) {
+    max-height: min(52dvh, 30rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* The desktop stack gives an expanded Data Layers panel height:100%. Inside
+     the mobile drawer that percentage resolves against an unbounded scroll
+     flow, so all rows inflate the panel past the viewport and the list itself
+     has no scroll range. Bound the panel at the drawer seam and keep its
+     existing list as the single touch-scroll owner. */
+  #mobile-controls #left-panel-stack > #data-panel:not(.collapsed) {
+    flex: 0 0 min(52dvh, 30rem);
+    height: min(52dvh, 30rem);
+    max-height: min(52dvh, 30rem);
+  }
+
+  #mobile-controls #left-panel-stack > #data-panel:not(.collapsed) .data-panel-inner {
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
+  #command-dock {
+    bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+
+  #first-run-launcher {
+    bottom: calc(5.8rem + env(safe-area-inset-bottom));
+  }
+
+  #toast {
+    bottom: calc(6.5rem + env(safe-area-inset-bottom));
+  }
+
+  /* Phone chrome gets explicit lanes instead of inheriting three desktop
+     overlays at the same top coordinate. */
+  #title-bar {
+    top: max(0.75rem, env(safe-area-inset-top));
+    left: 0.75rem;
+  }
+
+  #title-bar h1 {
+    gap: 0.4rem;
+    font-size: 0.875rem;
+    letter-spacing: 0.2rem;
+  }
+
+  #title-bar .title-logo { width: 2rem; }
+
+  #title-bar .subtitle {
+    margin-top: 0.2rem;
+    font-size: 0.45rem;
+    letter-spacing: 0.13rem;
+  }
+
+  #style-indicator {
+    top: calc(env(safe-area-inset-top) + 3.45rem);
+    right: auto;
+    left: 1rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    text-align: left;
+  }
+
+  #style-indicator .indicator-label {
+    font-size: 0.45rem;
+    letter-spacing: 0.1rem;
+  }
+
+  #style-indicator .indicator-value {
+    margin-top: 0;
+    font-size: 0.625rem;
+    letter-spacing: 0.14rem;
+  }
+
+  #top-center-actions {
+    top: calc(env(safe-area-inset-top) + 4.85rem);
+    left: 0.75rem;
+    transform: none;
+  }
+
+  #mobile-controls-toggle {
+    top: calc(env(safe-area-inset-top) + 4.85rem);
+  }
+
+  #intel-hud[data-variant='tactical'] .hud-top-left,
+  #intel-hud[data-variant='operator'] .hud-top-left {
+    top: calc(env(safe-area-inset-top) + 8.5rem);
+    right: 0.75rem;
+    left: 0.75rem;
+  }
+
+  #intel-hud .hud-top-left .hud-summary-wrap { display: none; }
+
+  #intel-hud[data-variant='tactical'] .hud-top-right,
+  #intel-hud[data-variant='operator'] .hud-top-right {
+    top: calc(env(safe-area-inset-top) + 13.9rem);
+    right: auto;
+    left: 0.75rem;
+  }
+
+  #intel-hud .hud-top-right .hud-content { text-align: left !important; }
+
+  #intel-hud[data-variant='tactical'] .hud-bottom-right,
+  #intel-hud[data-variant='operator'] .hud-bottom-right {
+    right: auto;
+    bottom: calc(2vh + 10.25rem);
+    left: 1rem;
+  }
+
+  #intel-hud .hud-bottom-right .hud-content { text-align: left !important; }
+
+  /* Reset the native button paint that appeared as a blank white square, then
+     give Location a readable light-glass control with a full touch target. */
+  #command-dock {
+    --dock-side-compact: 4.5rem;
+  }
+
+  #command-dock #location-bar-toggle {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.4rem 0.45rem;
+    color: rgba(236, 250, 253, 0.96);
+    background: linear-gradient(180deg, rgba(232, 250, 253, 0.2), rgba(145, 202, 216, 0.1));
+    border: 1px solid rgba(224, 248, 252, 0.62);
+    border-radius: 0.45rem;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06) inset, 0 0.3rem 0.9rem rgba(0, 0, 0, 0.28);
+  }
+
+  #command-dock #location-bar-toggle:is(:hover, :focus-visible) {
+    color: #fff;
+    background: linear-gradient(180deg, rgba(239, 253, 255, 0.28), rgba(96, 200, 223, 0.17));
+    border-color: rgba(239, 253, 255, 0.88);
+  }
+
+  #command-dock .panel-title,
+  #command-dock .location-toolbar-label {
+    width: auto;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  #command-dock .dock-label-mobile { display: inline; }
+  #command-dock .dock-label-desktop { display: none; }
+}
+
+@media (max-width: 620px), (pointer: coarse) {
+  :is(
+    .panel-collapse-btn,
+    #top-center-actions button,
+    .search-toggle-btn,
+    .dock-pin-btn,
+    .data-toggle-btn,
+    .scene-btn,
+    .pp-mode-btn,
+    .map-stack-chip
+  ) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  :is(.pp-slider, .param-slider, .gev-quantitative-slider) {
+    min-height: 44px;
+  }
+
+  :where(button, [href], input, select, textarea):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}

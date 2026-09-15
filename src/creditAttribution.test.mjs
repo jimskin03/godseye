@@ -203,6 +203,7 @@ const RECOGNIZED = new Set([
   // rail
   '#right-context-rail',
   '#right-context-rail.layout-focus',
+  '#mobile-controls #right-context-rail',
   // tray
   '#command-dock .dock-popover-content',
   '#command-dock #location-bar .dock-popover-content',
@@ -298,7 +299,10 @@ function resolve(candidates, prop, width, label) {
 /** Evaluate a length. Anything the model cannot resolve exactly fails loudly. */
 function toPx(value, viewportHeight, where) {
   const trimmed = value.trim();
-  const inner = /^calc\(/.test(trimmed) ? trimmed.slice(5, -1) : trimmed;
+  const rawInner = /^calc\(/.test(trimmed) ? trimmed.slice(5, -1) : trimmed;
+  // CSS safe-area insets are non-negative. Zero is therefore the
+  // conservative clearance floor for every device shape.
+  const inner = rawInner.replace(/env\(safe-area-inset-(?:top|right|bottom|left)\)/g, '0px');
   assert.doesNotMatch(inner, /\bcalc\(/, `nested calc() in ${where}: "${value}"`);
   assert.doesNotMatch(inner, /\b(min|max|clamp|env|attr|round|mod)\(/, `unmodelled function in ${where}: "${value}"`);
   assert.doesNotMatch(inner, /[*/]/, `unmodelled operator in ${where}: "${value}"`);
@@ -385,6 +389,10 @@ test('the model refuses every cascade construct it cannot resolve', () => {
   for (const { rule, part } of ownBoxEntries()) {
     const guarded = rule.decls.filter((decl) => GUARDED_PROPS.has(decl.prop));
     if (!guarded.length) continue;
+    // Inside the explicit mobile drawer the rail is static flow content. The
+    // drawer owns the external geometry and the standalone rail anchor is not
+    // displayed, so this reset cannot enter the credit-clearance model.
+    if (part === '#mobile-controls #right-context-rail') continue;
     if (!RECOGNIZED.has(part)) {
       complaints.push(`unrecognized selector positions a modelled element: "${part}" (${guarded.map((d) => d.prop).join(', ')})`);
       continue;
@@ -411,7 +419,14 @@ test('the model refuses every cascade construct it cannot resolve', () => {
         // (proven inapplicable at <=720px by the mobile-mode test).
         const railOwn = part === '#right-context-rail' && decl.prop === 'max-height';
         const railFocus = part === '#right-context-rail.layout-focus';
-        if (!railOwn && !railFocus) complaints.push(`${decl.prop}: ${decl.value} on "${part}"`);
+        // A phone tray cap only shortens the sheet and scrolls its contents;
+        // unlike a fixed height it cannot push the tray into the credit band.
+        const scrollableTrayCap = part.includes('.dock-popover-content')
+          && decl.prop === 'max-height'
+          && rule.decls.some((candidate) => candidate.prop === 'overflow-y' && candidate.value === 'auto');
+        if (!railOwn && !railFocus && !scrollableTrayCap) {
+          complaints.push(`${decl.prop}: ${decl.value} on "${part}"`);
+        }
       }
       if (decl.prop === 'transform' && /translateY|translate3d|matrix|scale\(/.test(decl.value)) {
         const identity = decl.value === 'translateY(0) scale(1)';

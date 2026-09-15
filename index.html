@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>God's Eye View</title>
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="stylesheet" href="/style.css" />
@@ -486,7 +486,7 @@
       <button id="control-panel-toggle" class="panel-header dock-tray-toggle" type="button"
         data-dock-toggle-target="control-panel" aria-expanded="false"
         aria-controls="control-panel-popover" aria-label="Expand Visual Presets">
-        <span class="panel-title"><span class="dock-label-icon dock-label-icon-presets" aria-hidden="true"></span>VISUAL PRESETS</span>
+        <span class="panel-title"><span class="dock-label-icon dock-label-icon-presets" aria-hidden="true"></span><span class="dock-label-desktop">VISUAL </span>PRESETS</span>
         <span class="panel-divider"></span>
       </button>
       <div id="control-panel-popover" class="dock-popover-content">
@@ -547,15 +547,16 @@
   <div id="location-bar" class="panel-collapsible collapsed">
     <div class="panel-glow"></div>
     <div class="location-inner">
-      <div class="location-toolbar">
-        <span class="location-toolbar-label"><span class="dock-label-icon dock-label-icon-location" aria-hidden="true"></span>LOCATION</span>
-        <button class="panel-collapse-btn" data-collapse-target="location-bar" title="Collapse panel">+</button>
-      </div>
+      <button id="location-bar-toggle" class="location-toolbar dock-tray-toggle" type="button"
+        data-dock-toggle-target="location-bar" aria-expanded="false"
+        aria-controls="location-bar-popover" aria-label="Expand Location">
+        <span class="location-toolbar-label"><span class="dock-label-icon dock-label-icon-location" aria-hidden="true"></span><span class="dock-label-desktop">LOCATION</span><span class="dock-label-mobile">LOCATE</span></span>
+      </button>
       <div id="location-mini-status" class="location-mini-status" aria-live="polite">
         <div id="location-mini-city" class="location-mini-city">📍 Location: --</div>
         <div id="location-mini-poi" class="location-mini-poi">Landmark: --</div>
       </div>
-      <div class="dock-popover-content">
+      <div id="location-bar-popover" class="dock-popover-content" role="region" aria-labelledby="location-bar-toggle">
         <button class="dock-pin-btn" data-pin-target="location-bar" type="button" aria-label="Pin location tray" aria-pressed="false" title="Keep location tray open"><img src="/pin.svg" alt="" /></button>
         <div id="poi-row" class="poi-row-container"></div>
         <div class="location-bar-divider" id="location-bar-divider"></div>
@@ -573,6 +574,12 @@
   </div>
   </div>
 
+  <button id="mobile-controls-toggle" type="button" aria-controls="mobile-controls"
+    aria-expanded="false" aria-label="Open map controls">
+    <span class="material-symbols-outlined" aria-hidden="true">tune</span>
+    <span>CONTROLS</span>
+  </button>
+  <div id="mobile-controls" role="region" aria-label="Map controls">
   <div id="left-panel-stack">
   <!-- Data Layer Toggle Panel -->
   <div id="data-panel" class="panel-collapsible collapsed active" data-panel-id="data-panel">
@@ -826,6 +833,8 @@
       </div>
     </div>
   </aside>
+
+  </div>
 
   <div id="scene-runtime"></div>
 

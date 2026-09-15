@@ -49,6 +49,7 @@ import {
   normalizeRegionalArticles,
   normalizeRegionalPlace,
   normalizeRegionalWeather,
+  regionalLocalization,
 } from './src/data/regionalBrief.js';
 import { normalizeAdsbLolPointResponse } from './src/data/adsbLolFallback.js';
 import { createAisStreamAdapter, isRecognizedAisEnvelope } from './src/data/aisStreamAdapter.js';
@@ -7124,6 +7125,7 @@ function regionalBriefProxy() {
       newsQuery: news.query,
       newsSource: news.source,
       articles: news.articles,
+      localization: regionalLocalization(point, place),
     };
     _regionalBriefCache.set(key, { payload, cachedAt: Date.now() });
     trimRegionalBriefCache();

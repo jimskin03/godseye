@@ -1,3 +1,5 @@
+import { malaysiaQueryAlias, isMalaysiaPoint } from './malaysiaRegional.js';
+
 const MAX_ARTICLES = 5;
 
 function cleanText(value, maxLength = 180) {
@@ -119,6 +121,16 @@ export function regionalDistanceM(from, to) {
   const a = Math.sin(deltaPhi / 2) ** 2
     + Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) ** 2;
   return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function regionalLocalization(point, place = null) {
+  const malaysia = place?.countryCode === 'MY' || isMalaysiaPoint(point?.latitude, point?.longitude);
+  return {
+    countryCode: malaysia ? 'MY' : (place?.countryCode || null),
+    timezone: malaysia ? 'Asia/Kuala_Lumpur' : null,
+    locale: malaysia ? 'en-MY' : 'en-US',
+    regionAlias: malaysiaQueryAlias(place?.locality || place?.region),
+  };
 }
 
 /** Fetch a bounded regional brief through the same-origin dev/preview proxy. */

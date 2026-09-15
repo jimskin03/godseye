@@ -1,5 +1,5 @@
 import * as Cesium from 'cesium';
-import { CITY_POIS, findPoiByName, flyToGlobeView, flyToLandmark, flyToPOI, flyToPresetLocation, GLOBE_VIEW, searchAndFlyTo } from '../locations.js';
+import { CITY_POIS, findPoiByName, flyToGlobeView, flyToLandmark, flyToPOI, flyToPresetLocation, GLOBE_VIEW, normalizePresetLocationId, searchAndFlyTo } from '../locations.js';
 import {
   getContextStore,
   getSelectedEntityContext,
@@ -178,14 +178,6 @@ const LAYER_ALIASES = new Map([
   ['active fires', 'local-firms'],
 ]);
 
-const CITY_ALIASES = new Map([
-  ['new york', 'nyc'],
-  ['new york city', 'nyc'],
-  ['san francisco', 'sf'],
-  ['washington', 'dc'],
-  ['washington dc', 'dc'],
-  ['washington d.c.', 'dc'],
-]);
 
 // Basemap stack vocabulary. Switching requires an explicit stack name
 // ("Bing aerial", "road map", "OSM", "Google 3D") — any "satellite(s)"
@@ -2343,11 +2335,7 @@ async function flyToRequestedLocation(viewer, args, {
 }
 
 function normalizeLocationId(value) {
-  const raw = String(value || '').trim().toLowerCase();
-  if (!raw) return null;
-  if (CITY_POIS[raw]) return raw;
-  if (CITY_ALIASES.has(raw)) return CITY_ALIASES.get(raw);
-  return null;
+  return normalizePresetLocationId(value);
 }
 
 function getCurrentViewState(viewer, styleManager, dataManager, sceneDirector = null) {

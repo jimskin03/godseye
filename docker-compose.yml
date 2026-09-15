@@ -1,0 +1,16 @@
+services:
+  gods-eye-view:
+    build: .
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+    environment:
+      - NODE_ENV=development
+    develop:
+      watch:
+        - path: ./src
+          action: rebuild
+        - path: ./package.json
+          action: rebuild

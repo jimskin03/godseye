@@ -201,6 +201,12 @@ const TRANSITION_DURATION_MS = 500;
 const STYLES = { retro: retroShader, surveillance: nightVisionShader, thermal: thermalShader, anime: animeShader, noir: noirShader, snow: snowShader };
 /** Versioned localStorage namespace prefix to invalidate stale panel layouts. */
 const PANEL_LAYOUT_STORAGE_VERSION = 'v6';
+const MOBILE_DRAWER_PANEL_IDS = Object.freeze([
+  'data-panel',
+  'cctv-panel',
+  'scene-panel',
+  'global-context-panel',
+]);
 const SHARE_PANEL_STATE_SPECS = Object.freeze([
   { id: 'control-panel', pinnable: true },
   { id: 'location-bar', pinnable: true },
@@ -3943,9 +3949,62 @@ export class StyleManager {
     this.setPanelCollapsed('location-bar', true, { syncShare: false, persist: false });
     this._initAutoHoverPanel('control-panel', { openDelayMs: 140, closeDelayMs: 420 });
     this._initAutoHoverPanel('location-bar', { openDelayMs: 140, closeDelayMs: 420 });
+    this._initMobileControls();
     this._initCommandDockPins();
     this._initCommandDockTrayMetrics();
     this._maybeNotifyLayoutReset();
+  }
+
+  /**
+   * Presents the desktop panel rails as one explicit, focusable drawer on phones.
+   * The DOM remains shared so panel state, voice actions, and share links retain
+   * one source of truth across responsive modes.
+   * @returns {void}
+   */
+  _initMobileControls() {
+    const toggle = document.getElementById('mobile-controls-toggle');
+    const drawer = document.getElementById('mobile-controls');
+    if (!toggle || !drawer || drawer.dataset.mobileControlsInitialized === 'true') return;
+    drawer.dataset.mobileControlsInitialized = 'true';
+    const mobileControlsMedia = window.matchMedia('(max-width: 620px)');
+    this._mobileControlsMedia = mobileControlsMedia;
+
+    const setOpen = (open, { returnFocus = false } = {}) => {
+      const shouldOpen = mobileControlsMedia.matches && Boolean(open);
+      drawer.classList.toggle('mobile-controls-open', shouldOpen);
+      document.body.classList.toggle('mobile-controls-open', shouldOpen);
+      toggle.setAttribute('aria-expanded', String(shouldOpen));
+      toggle.setAttribute('aria-label', shouldOpen ? 'Close map controls' : 'Open map controls');
+      drawer.inert = mobileControlsMedia.matches && !shouldOpen;
+      if (shouldOpen) {
+        window.requestAnimationFrame(() => {
+          drawer.querySelector('.panel-collapse-btn, button, select, input')?.focus?.();
+        });
+      } else if (returnFocus) {
+        toggle.focus();
+      }
+    };
+
+    toggle.addEventListener('click', () => {
+      setOpen(!drawer.classList.contains('mobile-controls-open'));
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || !drawer.classList.contains('mobile-controls-open')) return;
+      event.stopImmediatePropagation();
+      setOpen(false, { returnFocus: true });
+    });
+    const syncResponsiveMode = () => {
+      if (!mobileControlsMedia.matches) {
+        drawer.classList.remove('mobile-controls-open');
+        document.body.classList.remove('mobile-controls-open');
+        toggle.setAttribute('aria-expanded', 'false');
+        drawer.inert = false;
+      } else {
+        drawer.inert = !drawer.classList.contains('mobile-controls-open');
+      }
+    };
+    mobileControlsMedia.addEventListener?.('change', syncResponsiveMode);
+    syncResponsiveMode();
   }
 
   /**
@@ -7668,6 +7727,20 @@ export class StyleManager {
     if (!panelEl) return;
     if (explicit && !restore) this.shareLinkManager?.claimRestoreLane?.('panel', panelId);
     const nextCollapsed = Boolean(collapsed);
+    if (
+      !nextCollapsed
+      && !restore
+      && MOBILE_DRAWER_PANEL_IDS.includes(panelId)
+      && window.matchMedia('(max-width: 620px)').matches
+    ) {
+      for (const siblingId of MOBILE_DRAWER_PANEL_IDS) {
+        if (siblingId === panelId) continue;
+        const sibling = document.getElementById(siblingId);
+        if (sibling && !sibling.classList.contains('collapsed')) {
+          this.setPanelCollapsed(siblingId, true, { persist, syncShare: false });
+        }
+      }
+    }
     const wasAutoCollapsed = panelEl.classList.contains('layout-auto-collapsed');
     const leftOwnerPanel = this._leftPanelStack?.contains(panelEl) ? panelEl : null;
     const rightOwnerPanel = panelId === 'radio-panel'

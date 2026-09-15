@@ -117,7 +117,92 @@ export const CITY_POIS = {
       { name: 'Jefferson Memorial', lat: 38.8814, lon: -77.0365, alt: 400, pitch: -30, heading: 0, buildingHeight: 25 },
     ],
   },
+  'kuala-lumpur': {
+    name: 'Kuala Lumpur',
+    country: 'Malaysia',
+    region: 'Kuala Lumpur',
+    groundElevation: 55,
+    viewBounds: { southwest: { lat: 2.90, lng: 101.50 }, northeast: { lat: 3.35, lng: 101.85 } },
+    pois: [
+      { name: 'Petronas Twin Towers', lat: 3.1579, lon: 101.7116, alt: 700, pitch: -25, heading: 315, buildingHeight: 225 },
+      { name: 'Bukit Bintang', lat: 3.1478, lon: 101.7115, alt: 650, pitch: -28, heading: 0, buildingHeight: 20 },
+      { name: 'Batu Caves', lat: 3.2379, lon: 101.6840, alt: 900, pitch: -30, heading: 180, buildingHeight: 50 },
+      { name: 'Merdeka 118', lat: 3.1412, lon: 101.7000, alt: 700, pitch: -22, heading: 45, buildingHeight: 300 },
+      { name: 'Kuala Lumpur International Airport', lat: 2.7456, lon: 101.7072, alt: 1800, pitch: -35, heading: 25, buildingHeight: 10 },
+    ],
+  },
+  'petaling-jaya': {
+    name: 'Petaling Jaya',
+    country: 'Malaysia',
+    region: 'Selangor',
+    groundElevation: 35,
+    viewBounds: { southwest: { lat: 3.00, lng: 101.55 }, northeast: { lat: 3.20, lng: 101.70 } },
+    pois: [
+      { name: '1 Utama', lat: 3.1491, lon: 101.6152, alt: 650, pitch: -30, heading: 90, buildingHeight: 35 },
+      { name: 'The Curve', lat: 3.1624, lon: 101.6088, alt: 550, pitch: -30, heading: 180, buildingHeight: 25 },
+    ],
+  },
+  putrajaya: {
+    name: 'Putrajaya',
+    country: 'Malaysia',
+    region: 'Putrajaya',
+    groundElevation: 35,
+    viewBounds: { southwest: { lat: 2.85, lng: 101.60 }, northeast: { lat: 2.99, lng: 101.78 } },
+    pois: [
+      { name: 'Putra Mosque', lat: 2.9360, lon: 101.6917, alt: 650, pitch: -30, heading: 180, buildingHeight: 35 },
+      { name: 'Perdana Putra', lat: 2.9368, lon: 101.6964, alt: 600, pitch: -28, heading: 90, buildingHeight: 30 },
+    ],
+  },
+  'george-town': {
+    name: 'George Town',
+    country: 'Malaysia',
+    region: 'Penang',
+    groundElevation: 8,
+    viewBounds: { southwest: { lat: 5.25, lng: 100.20 }, northeast: { lat: 5.48, lng: 100.40 } },
+    pois: [
+      { name: 'George Town Heritage Zone', lat: 5.4141, lon: 100.3288, alt: 750, pitch: -30, heading: 180, buildingHeight: 15 },
+      { name: 'Penang Bridge', lat: 5.3647, lon: 100.3958, alt: 1200, pitch: -25, heading: 90, buildingHeight: 25 },
+    ],
+  },
+  'johor-bahru': {
+    name: 'Johor Bahru',
+    country: 'Malaysia',
+    region: 'Johor',
+    groundElevation: 20,
+    viewBounds: { southwest: { lat: 1.38, lng: 103.55 }, northeast: { lat: 1.62, lng: 103.90 } },
+    pois: [
+      { name: 'Sultan Abu Bakar Mosque', lat: 1.4556, lon: 103.7460, alt: 650, pitch: -30, heading: 180, buildingHeight: 25 },
+      { name: 'Port of Tanjung Pelepas', lat: 1.3620, lon: 103.5497, alt: 1800, pitch: -35, heading: 45, buildingHeight: 10 },
+    ],
+  },
 };
+
+/** Shared spoken/search aliases. Values are canonical preset IDs. */
+export const LOCATION_ALIASES = Object.freeze({
+  'new york': 'nyc',
+  'new york city': 'nyc',
+  'san francisco': 'sf',
+  washington: 'dc',
+  'washington dc': 'dc',
+  'washington d c': 'dc',
+  kl: 'kuala-lumpur',
+  'k l': 'kuala-lumpur',
+  'kuala lumpur': 'kuala-lumpur',
+  pj: 'petaling-jaya',
+  'petaling jaya': 'petaling-jaya',
+  putrajaya: 'putrajaya',
+  'george town': 'george-town',
+  penang: 'george-town',
+  jb: 'johor-bahru',
+  'johor bahru': 'johor-bahru',
+});
+
+export function normalizePresetLocationId(value) {
+  const raw = String(value || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!raw) return null;
+  if (CITY_POIS[raw]) return raw;
+  return LOCATION_ALIASES[raw] || null;
+}
 
 /**
  * Absolute full-earth camera preset for the zoom_to_globe voice tool. The height
@@ -347,6 +432,16 @@ export const CANCELLED_SEARCH = Object.freeze({ cancelled: true });
  * default; precise landmarks/buildings use close landmark framing.
  */
 export async function searchAndFlyTo(viewer, query, options = {}) {
+  const aliasId = normalizePresetLocationId(query);
+  if (aliasId && CITY_POIS[aliasId]) {
+    const city = CITY_POIS[aliasId];
+    const result = flyToPresetLocation(viewer, aliasId, {
+      ...options,
+      viewMode: options.viewMode || 'overview',
+    });
+    if (!result) throw new Error(`Unable to frame ${city.name}`);
+    return { label: city.name, navigationMode: 'malaysia-preset', rangeM: result.rangeM };
+  }
   const apiKey = window.__GOOGLE_MAPS_API_KEY__ || import.meta.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey) throw new Error('No Google Maps API key available for geocoding');
 
