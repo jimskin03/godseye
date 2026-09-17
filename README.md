@@ -92,7 +92,7 @@ No account, no signup. The first-run card will offer to stage a mission for you 
 
 ![Moving from a full airport overhead down to close taxiway inspection with 3D flight models](docs/media/start-here/airport-ground-traffic-google-3d.gif)
 
-4. **Look through a public camera.** Turn on **CCTV** over Austin, London, or California. The feeds aren't webcam embeds — they project *into* the 3D city. Cycle coverage to **VIEWSHED** and every camera draws its estimated coverage volume — where it reaches, and where it goes blind.
+4. **Look through a public camera.** Turn on **CCTV** over Austin, London, California, or Malaysia (Kuala Lumpur, Penang, and expressway corridors). The feeds aren't webcam embeds — they project *into* the 3D city. Cycle coverage to **VIEWSHED** and every camera draws its estimated coverage volume — where it reaches, and where it goes blind.
 
 ![Diving into an Austin intersection with a live public camera projected into the 3D scene](docs/media/03-austin-cctv.gif)
 
@@ -179,7 +179,7 @@ Thirteen live layers. **Ten of them need nothing at all** — no key, no account
 | 🛰️ **Satellites** | A roughly 840-object core catalog, color-coded by class with a live legend — the **DENSE** chip drops in the whole Starlink shell | CelesTrak | 🟢 |
 | 🌍 **Earthquakes** | Global seismic activity, last 24h | USGS | 🟢 |
 | 🚗 **Traffic** | Live congestion driving per-vehicle flow at street level — dive below ~8 km and the dots color to real jams. Keyless it's an approximate simulation | TomTom + OSM | 🟢 (🟡 TomTom makes it real — get one) |
-| 📹 **CCTV Mesh** | ~800 public cameras projected *into* the 3D space — Austin · California (Caltrans) · London (TfL). Positions are published; poses are estimated priors **you calibrate by dragging a gizmo on the camera itself** | City APIs | 🟢 |
+| 📹 **CCTV Mesh** | ~800 public cameras projected *into* the 3D space — Austin · California (Caltrans) · London (TfL) · Malaysia (DBKL ITIS & LLM expressways). Positions are published; poses are estimated priors **you calibrate by dragging a gizmo on the camera itself** | City & Highway APIs | 🟢 |
 | 📻 **Radio** | Geolocated world radio with an **analog tuner** — drag the needle across up to 750 stations and the globe flies to each broadcaster | Radio Browser / broadcasters | 🟢 |
 | 🚲 **Bikeshare** | Live station availability | GBFS | 🟢 |
 | 🔥 **Active Fires** | Live NASA FIRMS detections, trailing 24h | NASA FIRMS | 🟡 |
@@ -189,6 +189,11 @@ Thirteen live layers. **Ten of them need nothing at all** — no key, no account
 ![A reconstructed Falcon 9 ascent climbing and curving into its projected orbit](docs/media/08-falcon9-replay.gif)
 
 *The Space Missions layer replaying a Falcon 9 ascent — labeled `RECONSTRUCTED ESTIMATE`, scrubbable 0.25×–4×.*
+
+### 🌏 Southeast Asia (ASEAN) Regional Intelligence & Malaysia Feeds
+- **24 Global & Regional City Presets (11 ASEAN Hubs)**: Instant fly-to navigation and 55 curated landmark POIs for Singapore, Bangkok, Chiang Mai, Hanoi, Ho Chi Minh City, Jakarta, Bali, Manila, Bandar Seri Begawan, Kota Kinabalu, and Kuching alongside Kuala Lumpur, George Town (Penang), Putrajaya, Petaling Jaya, and Johor Bahru.
+- **16 Malaysian Highway & Municipal CCTV Feeds**: Real-time traffic cameras across Kuala Lumpur (KLCC, Pavilion, Merdeka 118, SMART Tunnel), PLUS expressway, NKVE, LDP, Federal Highway, Karak Highway, Penang Bridges, and Johor-Singapore Causeway CIQ.
+- **Multi-Agency Regional Hazards & Intelligence**: Integrated disaster warnings, weather alerts, and regional briefs across Indonesia (BMKG), Thailand (TMD), Philippines (PAGASA), Vietnam (VNMHA), and ASEAN AHA Centre monitoring.
 
 **Also on the globe:** neighborhood overlays · an optional cockpit WX cloud effect. **Bundled static infrastructure:** Datacenters (4,351), Dams (704), and Submarine Cables (712).
 
