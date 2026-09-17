@@ -4158,10 +4158,10 @@ async function refreshCctvSources() {
 
   const forceAustin = String(process.env.CCTV_FORCE_AUSTIN || '').trim() === '1';
   const preferAustin = String(process.env.CCTV_PREFER_AUSTIN || '1').trim() !== '0';
-  // Live open-data packs (Austin + Caltrans + TfL) load unless a file/env pack
-  // is configured and live packs aren't forced — same gate that governed the
-  // Austin-only fetch, now governing all three. Each pack fails independently.
-  const needsLiveSources = forceAustin || ((fromFile.length + fromEnv.length) === 0 && preferAustin);
+  const disableLive = String(process.env.CCTV_DISABLE_LIVE || '').trim() === '1';
+  // Live open-data packs (Austin + Caltrans + TfL) load unless explicitly disabled
+  // or preferAustin is 0, so global feeds and regional curated feeds coexist.
+  const needsLiveSources = !disableLive && (forceAustin || preferAustin);
   const tflEnabled = String(process.env.CCTV_TFL_ENABLED || '1').trim() !== '0';
 
   let fromAustin = [];
