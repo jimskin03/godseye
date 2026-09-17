@@ -142,8 +142,8 @@
     "mountHeightM": 22,
     "groundElevationM": 40,
     "poseSource": "curated",
-    "url": "https://images.jalanow.com/cctv/nkve/damansara-toll.jpg",
-    "snapshotUrl": "https://images.jalanow.com/cctv/nkve/damansara-toll.jpg",
+    "url": "https://c8.fgies.com/NKV/NKV-01.jpg",
+    "snapshotUrl": "https://c8.fgies.com/NKV/NKV-01.jpg",
     "license": "Highway CCTV feed / PLUS NKVE"
   },
   {
@@ -184,8 +184,8 @@
     "mountHeightM": 24,
     "groundElevationM": 8,
     "poseSource": "curated",
-    "url": "https://images.jalanow.com/cctv/penang/bridge-toll.jpg",
-    "snapshotUrl": "https://images.jalanow.com/cctv/penang/bridge-toll.jpg",
+    "url": "https://c8.fgies.com/PNB/PNB-01.jpg",
+    "snapshotUrl": "https://c8.fgies.com/PNB/PNB-01.jpg",
     "license": "Highway CCTV feed / PLUS Penang Bridge"
   },
   {
@@ -205,8 +205,8 @@
     "mountHeightM": 38,
     "groundElevationM": 5,
     "poseSource": "curated",
-    "url": "https://images.jalanow.com/cctv/penang/bridge-midspan.jpg",
-    "snapshotUrl": "https://images.jalanow.com/cctv/penang/bridge-midspan.jpg",
+    "url": "https://c8.fgies.com/PNB/PNB-02.jpg",
+    "snapshotUrl": "https://c8.fgies.com/PNB/PNB-02.jpg",
     "license": "Highway CCTV feed / PLUS Penang Bridge"
   },
   {
@@ -226,8 +226,8 @@
     "mountHeightM": 36,
     "groundElevationM": 5,
     "poseSource": "curated",
-    "url": "https://images.jalanow.com/cctv/penang/second-bridge.jpg",
-    "snapshotUrl": "https://images.jalanow.com/cctv/penang/second-bridge.jpg",
+    "url": "https://c8.fgies.com/PNB/PNB-03.jpg",
+    "snapshotUrl": "https://c8.fgies.com/PNB/PNB-03.jpg",
     "license": "Highway CCTV feed / JKSB"
   },
   {
@@ -247,8 +247,8 @@
     "mountHeightM": 32,
     "groundElevationM": 18,
     "poseSource": "curated",
-    "url": "https://images.jalanow.com/cctv/causeway/ciq-jb.jpg",
-    "snapshotUrl": "https://images.jalanow.com/cctv/causeway/ciq-jb.jpg",
+    "url": "https://g1.fgies.com/mbciq/CIQ1.jpg",
+    "snapshotUrl": "https://g1.fgies.com/mbciq/CIQ1.jpg",
     "license": "Highway CCTV feed / LLM Causeway"
   },
   {
@@ -268,8 +268,8 @@
     "mountHeightM": 26,
     "groundElevationM": 15,
     "poseSource": "curated",
-    "url": "https://images.jalanow.com/cctv/linkedua/tanjung-kupang.jpg",
-    "snapshotUrl": "https://images.jalanow.com/cctv/linkedua/tanjung-kupang.jpg",
+    "url": "https://g1.fgies.com/mbciq/CIQ2.jpg",
+    "snapshotUrl": "https://g1.fgies.com/mbciq/CIQ2.jpg",
     "license": "Highway CCTV feed / PLUS Linkedua"
   },
   {

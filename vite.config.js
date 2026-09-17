@@ -4355,6 +4355,7 @@ async function proxyMediaResponse(res, upstream, { sourceHeader = 'upstream' } =
   const headers = {
     'Content-Type': contentType,
     'Cache-Control': cacheControl,
+    'Access-Control-Allow-Origin': '*',
     'X-CCTV-Source': sourceHeader,
   };
   if (contentLength) headers['Content-Length'] = contentLength;
@@ -4569,13 +4570,29 @@ function cctvProxy() {
             return;
           }
 
+          if (req.method === 'OPTIONS') {
+            res.writeHead(204, {
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+              'Access-Control-Allow-Headers': 'Range, Content-Type, Accept',
+            });
+            res.end();
+            return;
+          }
+
           if (url.pathname.startsWith('/media/')) {
-            const cameraId = decodeURIComponent(url.pathname.replace('/media/', '').trim()) || 'camera';
+            const rawMediaRest = url.pathname.replace(/^\/media\/?/, '').trim();
+            const slashIdx = rawMediaRest.indexOf('/');
+            const rawCameraId = slashIdx >= 0 ? rawMediaRest.slice(0, slashIdx) : rawMediaRest;
+            const rawSubpath = slashIdx >= 0 ? rawMediaRest.slice(slashIdx + 1) : '';
+
+            const cameraId = decodeURIComponent(rawCameraId) || 'camera';
+            const subpath = rawSubpath ? decodeURIComponent(rawSubpath) : '';
             const source = sourceById.get(cameraId);
-            const mediaUrl = source?.url || '';
+            const baseMediaUrl = source?.url || '';
             const feedType = normalizeFeedType(source?.feedType || 'image');
 
-            if (!mediaUrl || !/^https?:\/\//i.test(mediaUrl)) {
+            if (!baseMediaUrl || !/^https?:\/\//i.test(baseMediaUrl)) {
               setHealth(cameraId, {
                 status: 'degraded',
                 sourceKind: 'fallback',
@@ -4587,11 +4604,20 @@ function cctvProxy() {
               return;
             }
 
+            let targetUrl = baseMediaUrl;
+            if (subpath) {
+              try {
+                targetUrl = new URL(subpath, baseMediaUrl).toString();
+              } catch {
+                targetUrl = `${baseMediaUrl.replace(/\/[^/]*$/, '')}/${subpath}`;
+              }
+            }
+
             try {
-              const upstreamHeaders = { 'User-Agent': 'gods-eye-view-cctv-proxy/1.0' };
+              const upstreamHeaders = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) gods-eye-view-cctv-proxy/1.0' };
               const requestRange = req.headers?.range;
               if (requestRange) upstreamHeaders.Range = requestRange;
-              const upstream = await fetch(mediaUrl, {
+              const upstream = await fetch(targetUrl, {
                 headers: upstreamHeaders,
               });
               const contentType = upstream.headers.get('content-type') || '';
@@ -4607,7 +4633,47 @@ function cctvProxy() {
                 return;
               }
 
-              if (isVideoFeedType(feedType) && !(contentType.startsWith('video/') || contentType.includes('mpegurl'))) {
+              const isHlsPlaylist =
+                contentType.includes('mpegurl')
+                || targetUrl.toLowerCase().endsWith('.m3u8')
+                || targetUrl.toLowerCase().includes('.m3u8?');
+
+              if (isHlsPlaylist) {
+                const playlistText = await upstream.text();
+                // Rewrite relative lines to route through subpaths
+                const lines = playlistText.split('\n').map((line) => {
+                  const trimmed = line.trim();
+                  if (!trimmed || trimmed.startsWith('#')) {
+                    if (trimmed.includes('URI="')) {
+                      return line.replace(/URI="([^"]+)"/g, (m, uri) => {
+                        if (/^https?:\/\//i.test(uri)) return m;
+                        return `URI="/api/cctv/media/${encodeURIComponent(cameraId)}/${uri}"`;
+                      });
+                    }
+                    return line;
+                  }
+                  if (/^https?:\/\//i.test(trimmed)) {
+                    return line;
+                  }
+                  return `/api/cctv/media/${encodeURIComponent(cameraId)}/${trimmed}`;
+                });
+                setHealth(cameraId, {
+                  status: 'ok',
+                  sourceKind: 'live',
+                  label: source?.provider || 'Configured source',
+                  message: 'Live HLS stream connected',
+                });
+                res.writeHead(upstream.status, {
+                  'Content-Type': contentType || 'application/vnd.apple.mpegurl',
+                  'Cache-Control': 'no-store',
+                  'Access-Control-Allow-Origin': '*',
+                  'X-CCTV-Source': 'live-media-hls',
+                });
+                res.end(lines.join('\n'));
+                return;
+              }
+
+              if (isVideoFeedType(feedType) && !(contentType.startsWith('video/') || contentType.includes('mpegurl') || contentType.includes('octet-stream'))) {
                 setHealth(cameraId, {
                   status: 'degraded',
                   sourceKind: 'upstream',

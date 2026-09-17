@@ -2351,6 +2351,7 @@ export class StyleManager {
     this._cctvCalibSaveBtn = document.getElementById('cctv-calib-save-btn');
     this._cctvCalibResetBtn = document.getElementById('cctv-calib-reset-btn');
     this._cctvFrame = document.getElementById('cctv-frame');
+    this._cctvVideo = document.getElementById('cctv-video');
     this._cctvFrameWrap = document.getElementById('cctv-frame-wrap');
     this._cctvFrameRequestToken = 0;
     this._cctvFramePreloader = null;
@@ -6288,12 +6289,19 @@ export class StyleManager {
     this._cctvFrameRequestToken += 1;
     this._cctvFramePreloader = null;
     if (this._cctvFrame) {
-      this._cctvFrame.classList.remove('active');
+      this._cctvFrame.classList.remove('active', 'hidden-by-video');
       this._cctvFrame.removeAttribute('src');
       this._cctvFrame.dataset.cameraId = '';
       this._cctvFrame.dataset.currentSrc = '';
       this._cctvFrame.dataset.loading = '';
       this._cctvFrame.dataset.error = '';
+    }
+    if (this._cctvVideo) {
+      this._cctvVideo.pause();
+      this._cctvVideo.removeAttribute('src');
+      this._cctvVideo.load();
+      this._cctvVideo.classList.remove('active');
+      this._cctvVideo.dataset.cameraId = '';
     }
     this._cctvFrameWrap?.classList.remove('loading', 'has-frame');
   }
@@ -6390,6 +6398,13 @@ export class StyleManager {
     if (!enabled || !activeCamera) {
       this._cctvSourceBadge.textContent = 'SOURCE · UNKNOWN';
       this._cctvSourceBadge.dataset.frameState = 'idle';
+      return;
+    }
+    const feedType = String(activeCamera.feedType || '').toLowerCase();
+    const isVideo = feedType === 'mp4' || feedType === 'hls' || feedType === 'webm';
+    if (isVideo && this._cctvVideo?.classList.contains('active')) {
+      this._cctvSourceBadge.textContent = '● LIVE STREAM';
+      this._cctvSourceBadge.dataset.frameState = 'live-video';
       return;
     }
     const hasDisplayedFrame = this._cctvFrameWrap?.classList.contains('has-frame');
@@ -6680,19 +6695,43 @@ export class StyleManager {
     }
 
     if (this._cctvFrame) {
-      const nextSrc = enabled ? activeCamera?.frameUrl : null;
+      const feedType = String(activeCamera?.feedType || '').toLowerCase();
+      const isVideo = enabled && (feedType === 'mp4' || feedType === 'hls' || feedType === 'webm');
       const nextCameraId = enabled ? (activeCamera?.id || '') : '';
-      const cameraChanged = this._cctvFrame.dataset.cameraId !== nextCameraId;
-      const frameLoading = this._cctvFrame.dataset.loading === 'true';
-      // A same-camera refresh waits for the current image to settle. Replacing
-      // src every 10 seconds can cancel a slow but healthy decode forever and
-      // leave SNAPSHOT · OK beside a blank/loading preview. Camera changes are
-      // immediate so navigation never waits on the prior camera's request.
-      if (nextSrc && (cameraChanged || (!frameLoading && this._cctvFrame.dataset.currentSrc !== nextSrc))) {
-        this._queueCctvFrame(nextSrc, nextCameraId, cameraChanged);
-      }
-      if (!nextSrc) {
-        this._clearCctvFrame();
+
+      if (isVideo && activeCamera?.mediaUrl) {
+        this._cctvFrame.classList.add('hidden-by-video');
+        if (this._cctvVideo) {
+          if (this._cctvVideo.dataset.cameraId !== nextCameraId) {
+            this._cctvVideo.dataset.cameraId = nextCameraId;
+            this._cctvVideo.src = activeCamera.mediaUrl;
+            this._cctvVideo.classList.add('active');
+            this._cctvFrameWrap?.classList.add('has-frame');
+            this._cctvVideo.play().catch(() => {});
+          }
+        }
+      } else {
+        this._cctvFrame.classList.remove('hidden-by-video');
+        if (this._cctvVideo && this._cctvVideo.src) {
+          this._cctvVideo.pause();
+          this._cctvVideo.removeAttribute('src');
+          this._cctvVideo.load();
+          this._cctvVideo.classList.remove('active');
+          this._cctvVideo.dataset.cameraId = '';
+        }
+        const nextSrc = enabled ? activeCamera?.frameUrl : null;
+        const cameraChanged = this._cctvFrame.dataset.cameraId !== nextCameraId;
+        const frameLoading = this._cctvFrame.dataset.loading === 'true';
+        // A same-camera refresh waits for the current image to settle. Replacing
+        // src every 10 seconds can cancel a slow but healthy decode forever and
+        // leave SNAPSHOT · OK beside a blank/loading preview. Camera changes are
+        // immediate so navigation never waits on the prior camera's request.
+        if (nextSrc && (cameraChanged || (!frameLoading && this._cctvFrame.dataset.currentSrc !== nextSrc))) {
+          this._queueCctvFrame(nextSrc, nextCameraId, cameraChanged);
+        }
+        if (!nextSrc) {
+          this._clearCctvFrame();
+        }
       }
     }
 
