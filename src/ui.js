@@ -9319,15 +9319,38 @@ export class StyleManager {
   _initLocationBar() {
     const QWERTY_KEYS = ['Q', 'W', 'E', 'R', 'T'];
 
+    const ASEAN_COUNTRIES = new Set([
+      'Malaysia', 'Singapore', 'Thailand', 'Vietnam', 'Indonesia', 'Philippines', 'Brunei',
+    ]);
+
     // Render city pills (no submenu wrappers — POI row is separate)
     for (const [cityId, city] of Object.entries(CITY_POIS)) {
       const pill = document.createElement('button');
       pill.className = 'location-pill';
       pill.dataset.locationId = cityId;
+      pill.dataset.region = ASEAN_COUNTRIES.has(city.country) ? 'asean' : 'global';
       pill.textContent = city.name;
       pill.addEventListener('click', () => this._onCityPillClick(cityId));
       this._locationPills.appendChild(pill);
     }
+
+    // Region filter tabs (ALL / ASEAN / GLOBAL)
+    const regionFilterBtns = document.querySelectorAll('.location-region-btn');
+    regionFilterBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        regionFilterBtns.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter = btn.dataset.regionFilter;
+        this._locationPills.querySelectorAll('.location-pill').forEach((p) => {
+          if (filter === 'all' || p.dataset.region === filter) {
+            p.style.display = '';
+          } else {
+            p.style.display = 'none';
+          }
+        });
+        this._locationPills.scrollLeft = 0;
+      });
+    });
 
     // QWERTY keyboard navigation for POIs
     this._poiKeydownHandler = (e) => {

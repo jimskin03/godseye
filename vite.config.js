@@ -3517,10 +3517,11 @@ function loadSourcesFromFile() {
 
   const configDir = path.resolve(__dirname, 'config');
   if (fs.existsSync(configDir)) {
-    for (const name of fs.readdirSync(configDir)) {
-      if (name.startsWith('cctv_sources.') && name.endsWith('.json') && name !== path.basename(DEFAULT_CCTV_SOURCE_FILE)) {
-        sources.push(...readJson(path.join(configDir, name)));
-      }
+    const files = fs.readdirSync(configDir)
+      .filter((n) => n.startsWith('cctv_sources.') && n.endsWith('.json') && n !== path.basename(DEFAULT_CCTV_SOURCE_FILE))
+      .sort((a, b) => (a.includes('malaysia') ? -1 : b.includes('malaysia') ? 1 : a.localeCompare(b)));
+    for (const name of files) {
+      sources.push(...readJson(path.join(configDir, name)));
     }
   }
 
@@ -4187,8 +4188,15 @@ async function refreshCctvSources() {
     if (!normalized.id) continue;
     byId.set(normalized.id, normalized);
   }
-
-  const mergedSources = Array.from(byId.values());
+  // Prioritize configured/file sources so curated packs (Malaysia, ASEAN, etc.) appear prominently at the top
+  const fileIds = new Set([...fromFile, ...fromEnv].map((f) => f && f.id).filter(Boolean));
+  const curated = [];
+  const live = [];
+  for (const item of byId.values()) {
+    if (fileIds.has(item.id)) curated.push(item);
+    else live.push(item);
+  }
+  const mergedSources = [...curated, ...live];
   const maxRaw = Number(process.env.CCTV_MAX_SOURCES || DEFAULT_CCTV_MAX_SOURCES);
   const maxCount = Number.isFinite(maxRaw) ? Math.max(8, Math.min(1200, Math.floor(maxRaw))) : DEFAULT_CCTV_MAX_SOURCES;
   if (mergedSources.length > maxCount) {
