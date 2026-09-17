@@ -12,7 +12,7 @@ import {
   clampBloomIntensity,
   decodeBloomIntensity,
 } from './bloom.js';
-import { LOCATIONS, CITY_POIS, GLOBE_VIEW, flyToGlobeView, flyToPresetLocation, flyToPOI, searchAndFlyTo } from './locations.js';
+import { LOCATIONS, CITY_POIS, GLOBE_VIEW, flyToGlobeView, flyToLandmark, flyToPresetLocation, flyToPOI, searchAndFlyTo } from './locations.js';
 import { locationMiniStatus } from './locationStatus.js';
 import { interruptCameraMotion } from './cameraVerbs.js';
 import {
@@ -2364,6 +2364,7 @@ export class StyleManager {
     this._globalLoadingLabel = document.getElementById('global-loading-label');
     this._globalLoadingDetail = document.getElementById('global-loading-detail');
     this._resetGlobeBtn = document.getElementById('reset-globe-view');
+    this._myLocationNavBtn = document.getElementById('my-location-nav-btn');
     this._cockpitResetGlobeBtn = document.getElementById('cockpit-reset-globe');
     this._styleButtons = document.getElementById('style-buttons');
     this._trafficSyncChip = document.getElementById('traffic-sync-chip');
@@ -2375,6 +2376,9 @@ export class StyleManager {
     this._toast = document.getElementById('toast');
     this._locationSearch = document.getElementById('location-search');
     this._searchToggle = document.getElementById('search-toggle');
+    this._myLocationBtn = document.getElementById('my-location-btn');
+    this._userLocationEntity = null;
+    this._isLocatingUser = false;
     this._locationPills = document.getElementById('location-pills');
     this._poiRow = document.getElementById('poi-row');
     this._locationBarDivider = document.getElementById('location-bar-divider');
@@ -2634,6 +2638,7 @@ export class StyleManager {
     this._initShareButton();
     this._initClearSelectedLayersButton();
     this._initResetGlobeButton();
+    this._initMyLocation();
     this._initHUDToggle();
     this._initModels3dToggle();
     this._applyGlobalPostDefaults();
@@ -9741,6 +9746,165 @@ export class StyleManager {
     }
   }
 
+  /** Wire the My Location buttons to request geolocation and fly camera. */
+  _initMyLocation() {
+    this._myLocationClickHandler = () => { void this.locateUser(); };
+    for (const button of [this._myLocationBtn, this._myLocationNavBtn]) {
+      button?.addEventListener('click', this._myLocationClickHandler);
+    }
+  }
+
+  /**
+   * Reads the user's geolocation via the browser Geolocation API and flies
+   * the Cesium camera to their coordinates with realistic standoff altitude.
+   * Also places a glowing visual beacon and updates the location status readout.
+   * @returns {Promise<{lat: number, lon: number, accuracy: number}|null>}
+   */
+  async locateUser() {
+    if (this._isLocatingUser) return null;
+
+    if (!navigator?.geolocation?.getCurrentPosition) {
+      this._showToast('Geolocation is not supported by your browser');
+      return null;
+    }
+
+    this._isLocatingUser = true;
+    this._myLocationBtn?.classList.add('locating');
+    this._myLocationNavBtn?.classList.add('locating');
+    this._myLocationBtn?.setAttribute('aria-label', 'Acquiring your location...');
+    this._myLocationNavBtn?.setAttribute('aria-label', 'Acquiring your location...');
+    this._showToast('Acquiring your location...');
+
+    return new Promise((resolve) => {
+      const settle = (result) => {
+        this._isLocatingUser = false;
+        this._myLocationBtn?.classList.remove('locating');
+        this._myLocationNavBtn?.classList.remove('locating');
+        this._myLocationBtn?.setAttribute('aria-label', 'Fly to my location');
+        this._myLocationNavBtn?.setAttribute('aria-label', 'Fly to my location');
+        resolve(result);
+      };
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (this._disposed) {
+            settle(null);
+            return;
+          }
+
+          const lat = position?.coords?.latitude;
+          const lon = position?.coords?.longitude;
+          const accuracy = position?.coords?.accuracy;
+
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+            this._showToast('Invalid coordinates received from browser');
+            settle(null);
+            return;
+          }
+
+          // Release active tracking / orbit
+          if (this.orbitController?.active) {
+            this.orbitController.stop();
+            this._orbitIndicator?.classList.remove('active');
+          }
+
+          const targetCarto = Cesium.Cartographic.fromDegrees(lon, lat);
+          const terrainHeight = this.viewer?.scene?.globe?.getHeight(targetCarto) || 0;
+          const targetHeight = Math.max(0, terrainHeight) + 15;
+
+          // Add / update user location marker entity in Cesium
+          if (this._userLocationEntity && this.viewer?.entities) {
+            try { this.viewer.entities.remove(this._userLocationEntity); } catch {}
+            this._userLocationEntity = null;
+          }
+
+          if (this.viewer?.entities?.add) {
+            try {
+              this._userLocationEntity = this.viewer.entities.add({
+                id: 'user-current-location',
+                position: Cesium.Cartesian3.fromDegrees(lon, lat, targetHeight),
+                point: {
+                  pixelSize: 12,
+                  color: Cesium.Color.fromCssColorString('#00d4ff'),
+                  outlineColor: Cesium.Color.WHITE,
+                  outlineWidth: 2,
+                  disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                },
+                label: {
+                  text: '📍 YOU ARE HERE',
+                  font: '600 11px JetBrains Mono, monospace',
+                  style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                  fillColor: Cesium.Color.fromCssColorString('#00d4ff'),
+                  outlineColor: Cesium.Color.BLACK,
+                  outlineWidth: 3,
+                  verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                  pixelOffset: new Cesium.Cartesian2(0, -12),
+                  disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                },
+              });
+            } catch (e) {
+              console.warn('[Geolocation] Failed to add user location marker entity:', e);
+            }
+          }
+
+          // Fly Cesium camera to user's location
+          const flight = this._flyWithTransition(true, (hooks) => flyToLandmark(this.viewer, lat, lon, {
+            range: 1800,
+            pitch: -35,
+            heading: 0,
+            buildingHeight: 15,
+            duration: 3.5,
+            ...hooks,
+          }));
+
+          if (flight?.targetPosition) {
+            this._currentTarget = flight.targetPosition;
+          }
+
+          // Deselect preset city and update readout
+          this._setActiveLocation(null);
+          this._currentPoi = null;
+          this._collapsePOIRow();
+
+          const latFormatted = Math.abs(lat).toFixed(4) + (lat >= 0 ? '°N' : '°S');
+          const lonFormatted = Math.abs(lon).toFixed(4) + (lon >= 0 ? '°E' : '°W');
+          const label = `My Location, ${latFormatted} ${lonFormatted}`;
+
+          this._searchedLocationLabel = label;
+          this._updateLocationMiniStatus();
+          this._showToast(`📍 Located: ${latFormatted}, ${lonFormatted}`);
+
+          settle({ lat, lon, accuracy });
+        },
+        (error) => {
+          let message = 'Unable to retrieve location';
+          if (error) {
+            switch (error.code) {
+              case 1: // PERMISSION_DENIED
+                message = 'Location access denied. Enable permissions in browser';
+                break;
+              case 2: // POSITION_UNAVAILABLE
+                message = 'Location position unavailable';
+                break;
+              case 3: // TIMEOUT
+                message = 'Location request timed out';
+                break;
+              default:
+                if (error.message) message = error.message;
+            }
+          }
+          this._showToast(message);
+          settle(null);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000,
+        }
+      );
+    });
+  }
+
   /** Wire the top-center action that clears only manager-owned data layers. */
   _initClearSelectedLayersButton() {
     if (!this._clearSelectedLayersBtn) return;
@@ -10324,6 +10488,15 @@ export class StyleManager {
       this._resetGlobeBtn?.removeEventListener('click', this._globeResetHandler);
       this._cockpitResetGlobeBtn?.removeEventListener('click', this._globeResetHandler);
       this._globeResetHandler = null;
+    }
+    if (this._myLocationClickHandler) {
+      this._myLocationBtn?.removeEventListener('click', this._myLocationClickHandler);
+      this._myLocationNavBtn?.removeEventListener('click', this._myLocationClickHandler);
+      this._myLocationClickHandler = null;
+    }
+    if (this._userLocationEntity && this.viewer?.entities) {
+      try { this.viewer.entities.remove(this._userLocationEntity); } catch {}
+      this._userLocationEntity = null;
     }
     if (this._clearSelectedLayersBtn && this._clearSelectedLayersHandler) {
       this._clearSelectedLayersBtn.removeEventListener('click', this._clearSelectedLayersHandler);

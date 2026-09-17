@@ -1819,11 +1819,12 @@ body.ui-clean-view #scene-runtime.active {
 .location-search-wrap {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 4px;
   flex-shrink: 0;
 }
 
-.search-toggle-btn {
+.search-toggle-btn,
+.my-location-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1837,11 +1838,41 @@ body.ui-clean-view #scene-runtime.active {
   outline: none;
   font-size: 14px;
   flex-shrink: 0;
+  color: var(--text-secondary);
 }
 
-.search-toggle-btn:hover {
+.search-toggle-btn:hover,
+.my-location-btn:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: var(--glass-border-hover);
+  color: var(--accent);
+}
+
+.my-location-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.my-location-btn.locating,
+#top-center-actions #my-location-nav-btn.locating {
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+  animation: locating-pulse 1.2s infinite ease-in-out;
+}
+
+@keyframes locating-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 #location-search {
@@ -7198,13 +7229,14 @@ body.scene-playback-mode :is(#clear-selected-layers, #reset-globe-view) {
 
 #command-dock .location-search-wrap {
   order: -1;
-  flex: 0 1 190px;
-  min-width: 132px;
+  flex: 0 1 224px;
+  min-width: 140px;
   padding-right: 8px;
   border-right: 1px solid rgba(123, 189, 211, 0.14);
 }
 
-#command-dock .search-toggle-btn {
+#command-dock .search-toggle-btn,
+#command-dock .my-location-btn {
   width: 30px;
   height: 30px;
   border-radius: 6px;
@@ -7508,12 +7540,13 @@ body.recording-mode #cesium-credits {
 }
 
 #command-dock .location-search-wrap {
-  flex: 0 0 10.5rem;
+  flex: 0 0 12.5rem;
   min-width: 0;
   padding-right: 0.4rem;
 }
 
-#command-dock .search-toggle-btn {
+#command-dock .search-toggle-btn,
+#command-dock .my-location-btn {
   width: 1.75rem;
   height: 1.75rem;
 }
@@ -9330,13 +9363,15 @@ body.scene-playback-mode #first-run-launcher {
   #command-dock .location-search-wrap {
     order: -1;
     display: grid;
-    grid-template-columns: 2.75rem minmax(0, 1fr);
+    grid-template-columns: 2.75rem 2.75rem minmax(0, 1fr);
+    gap: 0.35rem;
     width: 100%;
     min-width: 0;
     padding: 0;
     border: 0;
   }
 
+  #command-dock .my-location-btn,
   #command-dock .search-toggle-btn,
   #command-dock #location-search,
   #command-dock #location-search.expanded {
@@ -9345,6 +9380,7 @@ body.scene-playback-mode #first-run-launcher {
     height: 2.75rem;
   }
 
+  #command-dock .my-location-btn,
   #command-dock .search-toggle-btn {
     width: 2.75rem;
   }
@@ -9669,6 +9705,7 @@ body.scene-playback-mode #first-run-launcher {
     .panel-collapse-btn,
     #top-center-actions button,
     .search-toggle-btn,
+    .my-location-btn,
     .dock-pin-btn,
     .data-toggle-btn,
     .scene-btn,

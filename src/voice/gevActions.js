@@ -285,13 +285,13 @@ export function createGevActionRunner({ viewer, styleManager, dataManager, scene
 
     // Navigation tools interrupt any continuous camera motion (spec §1.1) —
     // checked FIRST because each handler returns.
-    if (name === 'zoom_to_globe') {
+    if (name === 'zoom_to_globe' || name === 'my_location' || name === 'locate_user') {
       interruptCameraMotion(`nav:${name}`);
     }
     // Explicit navigation while TRACKING supersedes the follow camera —
     // otherwise the tracker drags the view back and "I flew there but can't
     // do anything" (field finding). track_entity manages its own handoff.
-    if (name === 'zoom_to_globe' && viewer.trackedEntity) {
+    if ((name === 'zoom_to_globe' || name === 'my_location' || name === 'locate_user') && viewer.trackedEntity) {
       stopAllTracking(viewer, dataManager);
     }
 
@@ -756,6 +756,18 @@ export function createGevActionRunner({ viewer, styleManager, dataManager, scene
     }
 
     if (name === 'fly_to_location') {
+      const q = String(args.query || args.locationId || '').trim().toLowerCase();
+      if ((q === 'my location' || q === 'current location' || q === 'my position' || q === 'user location')
+          && typeof styleManager?.locateUser === 'function') {
+        const result = await styleManager.locateUser();
+        return {
+          ok: !!result,
+          action: 'fly_to_location',
+          label: result ? `My Location (${result.lat.toFixed(4)}, ${result.lon.toFixed(4)})` : 'My Location',
+          latitude: result?.lat,
+          longitude: result?.lon,
+        };
+      }
       return flyToRequestedLocation(viewer, args, {
         runImmediate: typeof styleManager?.runImmediateLocationNavigation === 'function'
           ? (navigate) => styleManager.runImmediateLocationNavigation(navigate)
@@ -795,6 +807,18 @@ export function createGevActionRunner({ viewer, styleManager, dataManager, scene
           longitude: Number(result.longitude.toFixed(2)),
         },
       };
+    }
+
+    if (name === 'my_location' || name === 'locate_user') {
+      if (typeof styleManager?.locateUser === 'function') {
+        const result = await styleManager.locateUser();
+        return {
+          ok: !!result,
+          action: 'my_location',
+          coords: result ? { latitude: Number(result.lat.toFixed(4)), longitude: Number(result.lon.toFixed(4)) } : null,
+        };
+      }
+      return { ok: false, action: 'my_location', error: 'User location not available' };
     }
 
     if (name === 'next_iss_pass') {
