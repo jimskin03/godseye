@@ -1,4 +1,4 @@
-import { malaysiaQueryAlias, isMalaysiaPoint } from './malaysiaRegional.js';
+import { resolveAseanLocalization } from './aseanRegional.js';
 
 const MAX_ARTICLES = 5;
 
@@ -124,13 +124,7 @@ export function regionalDistanceM(from, to) {
 }
 
 export function regionalLocalization(point, place = null) {
-  const malaysia = place?.countryCode === 'MY' || isMalaysiaPoint(point?.latitude, point?.longitude);
-  return {
-    countryCode: malaysia ? 'MY' : (place?.countryCode || null),
-    timezone: malaysia ? 'Asia/Kuala_Lumpur' : null,
-    locale: malaysia ? 'en-MY' : 'en-US',
-    regionAlias: malaysiaQueryAlias(place?.locality || place?.region),
-  };
+  return resolveAseanLocalization(point, place);
 }
 
 /** Fetch a bounded regional brief through the same-origin dev/preview proxy. */

@@ -91,6 +91,19 @@ const ALIASES = {
   'yucatan peninsula': 'pen de yucatan',
   'kamchatka': 'kamchatka peninsula',
   'sierra nevada mountains': 'sierra nevada',
+  'straits of malacca': 'strait of malacca',
+  'malacca strait': 'strait of malacca',
+  'selat melaka': 'strait of malacca',
+  'thailand gulf': 'gulf of thailand',
+  'gulf of siam': 'gulf of thailand',
+  'borneo island': 'borneo',
+  'kalimantan': 'borneo',
+  'sumatra island': 'sumatra',
+  'sumatera': 'sumatra',
+  'malay pen': 'malay peninsula',
+  'malaya': 'malay peninsula',
+  'indochina': 'indochina peninsula',
+  'east indies': 'malay archipelago',
 };
 
 /** Generic suffix rewrites tried when there is no exact/alias hit. */

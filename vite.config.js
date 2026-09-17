@@ -3492,19 +3492,39 @@ function normalizeKey(text) {
  * @returns {Array<object>} Array of raw source objects, or [] on error.
  */
 function loadSourcesFromFile() {
-  const sourceFile = process.env.CCTV_SOURCES_FILE || DEFAULT_CCTV_SOURCE_FILE;
-  const resolved = path.isAbsolute(sourceFile)
-    ? sourceFile
-    : path.resolve(__dirname, sourceFile);
-  try {
-    if (!fs.existsSync(resolved)) return [];
-    const raw = fs.readFileSync(resolved, 'utf8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.warn('[CCTV] failed to read source file:', resolved, error?.message || error);
-    return [];
+  const readJson = (filePath) => {
+    try {
+      if (!fs.existsSync(filePath)) return [];
+      const raw = fs.readFileSync(filePath, 'utf8');
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.warn('[CCTV] failed to read source file:', filePath, error?.message || error);
+      return [];
+    }
+  };
+
+  if (process.env.CCTV_SOURCES_FILE) {
+    const custom = path.isAbsolute(process.env.CCTV_SOURCES_FILE)
+      ? process.env.CCTV_SOURCES_FILE
+      : path.resolve(__dirname, process.env.CCTV_SOURCES_FILE);
+    return readJson(custom);
   }
+
+  const sources = [];
+  const defaultPath = path.resolve(__dirname, DEFAULT_CCTV_SOURCE_FILE);
+  sources.push(...readJson(defaultPath));
+
+  const configDir = path.resolve(__dirname, 'config');
+  if (fs.existsSync(configDir)) {
+    for (const name of fs.readdirSync(configDir)) {
+      if (name.startsWith('cctv_sources.') && name.endsWith('.json') && name !== path.basename(DEFAULT_CCTV_SOURCE_FILE)) {
+        sources.push(...readJson(path.join(configDir, name)));
+      }
+    }
+  }
+
+  return sources;
 }
 
 /**

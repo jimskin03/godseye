@@ -252,6 +252,26 @@ const CAMERA_SEEDS = [
 
   { id: 'austin-congress-s', cityId: 'austin', poiIndex: 0, label: 'Congress Southbound', offsetNorthM: -165, offsetEastM: 40, headingDeg: 12, fovDeg: 74, rangeM: 760, elevationM: 24 },
   { id: 'austin-downtown-west', cityId: 'austin', poiIndex: 1, label: 'Downtown West', offsetNorthM: -120, offsetEastM: -160, headingDeg: 120, fovDeg: 69, rangeM: 700, elevationM: 20 },
+
+  { id: 'kl-petronas-twin-towers', cityId: 'kuala-lumpur', poiIndex: 0, label: 'KLCC Twin Towers & Park', offsetNorthM: 140, offsetEastM: -90, headingDeg: 135, fovDeg: 72, rangeM: 650, elevationM: 30 },
+  { id: 'kl-bukit-bintang-crossing', cityId: 'kuala-lumpur', poiIndex: 1, label: 'Bukit Bintang Crossing', offsetNorthM: -110, offsetEastM: 85, headingDeg: 310, fovDeg: 70, rangeM: 520, elevationM: 24 },
+  { id: 'kl-merdeka-118-plaza', cityId: 'kuala-lumpur', poiIndex: 3, label: 'Merdeka 118 Spire Cam', offsetNorthM: 160, offsetEastM: 110, headingDeg: 225, fovDeg: 75, rangeM: 780, elevationM: 35 },
+  { id: 'pj-1utama-hub', cityId: 'petaling-jaya', poiIndex: 0, label: '1 Utama Central Hub', offsetNorthM: -120, offsetEastM: 95, headingDeg: 320, fovDeg: 68, rangeM: 580, elevationM: 24 },
+  { id: 'putrajaya-dataran-core', cityId: 'putrajaya', poiIndex: 0, label: 'Dataran Putra & Mosque', offsetNorthM: 150, offsetEastM: -60, headingDeg: 170, fovDeg: 70, rangeM: 680, elevationM: 28 },
+  { id: 'penang-bridge-approach', cityId: 'george-town', poiIndex: 1, label: 'Penang Bridge Highway Cam', offsetNorthM: 120, offsetEastM: -140, headingDeg: 110, fovDeg: 72, rangeM: 820, elevationM: 28 },
+  { id: 'jb-causeway-checkpoint', cityId: 'johor-bahru', poiIndex: 0, label: 'Causeway Straits View', offsetNorthM: 80, offsetEastM: 160, headingDeg: 140, fovDeg: 74, rangeM: 750, elevationM: 30 },
+
+  { id: 'singapore-marina-bay', cityId: 'singapore', poiIndex: 0, label: 'Marina Bay Waterfront', offsetNorthM: -130, offsetEastM: 140, headingDeg: 295, fovDeg: 76, rangeM: 720, elevationM: 32 },
+  { id: 'singapore-merlion-promenade', cityId: 'singapore', poiIndex: 2, label: 'Merlion Promenade', offsetNorthM: 90, offsetEastM: -75, headingDeg: 120, fovDeg: 70, rangeM: 550, elevationM: 22 },
+  { id: 'bangkok-wat-arun-chao-phraya', cityId: 'bangkok', poiIndex: 0, label: 'Wat Arun Riverfront', offsetNorthM: 110, offsetEastM: 130, headingDeg: 235, fovDeg: 70, rangeM: 620, elevationM: 24 },
+  { id: 'bangkok-iconsiam-pier', cityId: 'bangkok', poiIndex: 2, label: 'ICONSIAM River Pier', offsetNorthM: -95, offsetEastM: 80, headingDeg: 310, fovDeg: 72, rangeM: 600, elevationM: 26 },
+  { id: 'hanoi-hoan-kiem-turtle', cityId: 'hanoi', poiIndex: 0, label: 'Hoan Kiem Lake Cam', offsetNorthM: 120, offsetEastM: 40, headingDeg: 195, fovDeg: 68, rangeM: 580, elevationM: 22 },
+  { id: 'hcmc-landmark-81-river', cityId: 'ho-chi-minh-city', poiIndex: 0, label: 'Landmark 81 Saigon River', offsetNorthM: -140, offsetEastM: 120, headingDeg: 325, fovDeg: 74, rangeM: 780, elevationM: 35 },
+  { id: 'jakarta-monas-merdeka', cityId: 'jakarta', poiIndex: 0, label: 'Monas Merdeka Square', offsetNorthM: 170, offsetEastM: -80, headingDeg: 160, fovDeg: 72, rangeM: 700, elevationM: 28 },
+  { id: 'jakarta-bundaran-hi', cityId: 'jakarta', poiIndex: 1, label: 'Bundaran HI Traffic Cam', offsetNorthM: -110, offsetEastM: 90, headingDeg: 330, fovDeg: 70, rangeM: 560, elevationM: 26 },
+  { id: 'manila-rizal-monument', cityId: 'manila', poiIndex: 1, label: 'Rizal Park Monument Cam', offsetNorthM: 130, offsetEastM: -60, headingDeg: 175, fovDeg: 70, rangeM: 600, elevationM: 22 },
+  { id: 'manila-bgc-high-street', cityId: 'manila', poiIndex: 2, label: 'BGC High Street Cam', offsetNorthM: -90, offsetEastM: 110, headingDeg: 300, fovDeg: 72, rangeM: 580, elevationM: 25 },
+  { id: 'brunei-soas-mosque', cityId: 'bandar-seri-begawan', poiIndex: 0, label: 'SOAS Lagoon Cam', offsetNorthM: 105, offsetEastM: -75, headingDeg: 145, fovDeg: 68, rangeM: 540, elevationM: 22 },
 ];
 
 // ---------------------------------------------------------------------------

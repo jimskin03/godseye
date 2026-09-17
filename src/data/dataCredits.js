@@ -128,6 +128,18 @@ export const DATA_CREDITS = [
       'Contains OS data © Crown copyright and database rights.',
   },
   {
+    key: 'malaysia-cctv',
+    html:
+      'CCTV cameras &amp; traffic feeds (Malaysia): Lembaga Lebuhraya Malaysia &amp; DBKL ITIS — ' +
+      '<a href="https://www.llm.gov.my" target="_blank" rel="noopener">llm.gov.my</a>',
+  },
+  {
+    key: 'asean-regional',
+    html:
+      'Regional disaster &amp; hazard warnings (Southeast Asia): ' +
+      '<a href="https://ahacentre.org" target="_blank" rel="noopener">ASEAN AHA Centre</a> &amp; regional agencies',
+  },
+  {
     key: 'gbfs',
     html: 'Bikeshare availability: GBFS operator feeds (e.g. Austin BCycle)',
   },

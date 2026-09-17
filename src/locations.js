@@ -175,6 +175,160 @@ export const CITY_POIS = {
       { name: 'Port of Tanjung Pelepas', lat: 1.3620, lon: 103.5497, alt: 1800, pitch: -35, heading: 45, buildingHeight: 10 },
     ],
   },
+  'kota-kinabalu': {
+    name: 'Kota Kinabalu',
+    country: 'Malaysia',
+    region: 'Sabah',
+    groundElevation: 10,
+    viewBounds: { southwest: { lat: 5.90, lng: 116.02 }, northeast: { lat: 6.05, lng: 116.15 } },
+    pois: [
+      { name: 'KK City Mosque', lat: 5.9957, lon: 116.0848, alt: 600, pitch: -28, heading: 180, buildingHeight: 30 },
+      { name: 'Jesselton Point', lat: 5.9904, lon: 116.0772, alt: 650, pitch: -30, heading: 225, buildingHeight: 20 },
+      { name: 'Signal Hill Observatory', lat: 5.9863, lon: 116.0805, alt: 500, pitch: -25, heading: 270, buildingHeight: 25 },
+      { name: 'Tanjung Aru Beach', lat: 5.9482, lon: 116.0447, alt: 900, pitch: -30, heading: 240, buildingHeight: 15 },
+      { name: 'Tun Mustapha Tower', lat: 6.0169, lon: 116.1042, alt: 700, pitch: -25, heading: 90, buildingHeight: 122 },
+    ],
+  },
+  kuching: {
+    name: 'Kuching',
+    country: 'Malaysia',
+    region: 'Sarawak',
+    groundElevation: 12,
+    viewBounds: { southwest: { lat: 1.50, lng: 110.30 }, northeast: { lat: 1.60, lng: 110.42 } },
+    pois: [
+      { name: 'Kuching Waterfront', lat: 1.5594, lon: 110.3444, alt: 650, pitch: -30, heading: 45, buildingHeight: 20 },
+      { name: 'Sarawak State Legislative Assembly', lat: 1.5642, lon: 110.3508, alt: 750, pitch: -25, heading: 200, buildingHeight: 70 },
+      { name: 'Borneo Cultures Museum', lat: 1.5546, lon: 110.3442, alt: 600, pitch: -28, heading: 0, buildingHeight: 40 },
+      { name: 'The Astana', lat: 1.5627, lon: 110.3468, alt: 550, pitch: -30, heading: 135, buildingHeight: 25 },
+      { name: 'Fort Margherita', lat: 1.5615, lon: 110.3524, alt: 500, pitch: -30, heading: 270, buildingHeight: 20 },
+    ],
+  },
+  singapore: {
+    name: 'Singapore',
+    country: 'Singapore',
+    region: 'Central',
+    groundElevation: 10,
+    viewBounds: { southwest: { lat: 1.22, lng: 103.60 }, northeast: { lat: 1.48, lng: 104.05 } },
+    pois: [
+      { name: 'Marina Bay Sands', lat: 1.2838, lon: 103.8591, alt: 850, pitch: -22, heading: 300, buildingHeight: 200 },
+      { name: 'Gardens by the Bay', lat: 1.2816, lon: 103.8636, alt: 750, pitch: -28, heading: 225, buildingHeight: 50 },
+      { name: 'Merlion Park', lat: 1.2868, lon: 103.8545, alt: 500, pitch: -25, heading: 120, buildingHeight: 20 },
+      { name: 'Jewel Changi Airport', lat: 1.3602, lon: 103.9897, alt: 700, pitch: -32, heading: 0, buildingHeight: 40 },
+      { name: 'Sentosa Island', lat: 1.2494, lon: 103.8303, alt: 1200, pitch: -30, heading: 45, buildingHeight: 30 },
+    ],
+  },
+  bangkok: {
+    name: 'Bangkok',
+    country: 'Thailand',
+    region: 'Bangkok',
+    groundElevation: 5,
+    viewBounds: { southwest: { lat: 13.60, lng: 100.40 }, northeast: { lat: 13.92, lng: 100.75 } },
+    pois: [
+      { name: 'Wat Arun', lat: 13.7437, lon: 100.4889, alt: 600, pitch: -25, heading: 270, buildingHeight: 82 },
+      { name: 'Grand Palace & Wat Phra Kaew', lat: 13.7500, lon: 100.4914, alt: 750, pitch: -30, heading: 90, buildingHeight: 40 },
+      { name: 'ICONSIAM', lat: 13.7267, lon: 100.5108, alt: 650, pitch: -25, heading: 315, buildingHeight: 120 },
+      { name: 'King Power Mahanakhon', lat: 13.7234, lon: 100.5283, alt: 850, pitch: -20, heading: 30, buildingHeight: 314 },
+      { name: 'Wat Pho', lat: 13.7465, lon: 100.4933, alt: 500, pitch: -28, heading: 180, buildingHeight: 30 },
+    ],
+  },
+  'chiang-mai': {
+    name: 'Chiang Mai',
+    country: 'Thailand',
+    region: 'Chiang Mai',
+    groundElevation: 310,
+    viewBounds: { southwest: { lat: 18.72, lng: 98.92 }, northeast: { lat: 18.85, lng: 99.05 } },
+    pois: [
+      { name: 'Wat Phra That Doi Suthep', lat: 18.8049, lon: 98.9216, alt: 700, pitch: -25, heading: 90, buildingHeight: 40 },
+      { name: 'Tha Phae Gate', lat: 18.7877, lon: 98.9933, alt: 550, pitch: -30, heading: 270, buildingHeight: 15 },
+      { name: 'Wat Chedi Luang', lat: 18.7870, lon: 98.9866, alt: 500, pitch: -28, heading: 180, buildingHeight: 60 },
+      { name: 'Nimmanhaemin', lat: 18.7967, lon: 98.9667, alt: 600, pitch: -25, heading: 45, buildingHeight: 30 },
+      { name: 'Wat Umong', lat: 18.7834, lon: 98.9515, alt: 500, pitch: -30, heading: 0, buildingHeight: 20 },
+    ],
+  },
+  hanoi: {
+    name: 'Hanoi',
+    country: 'Vietnam',
+    region: 'Hanoi',
+    groundElevation: 12,
+    viewBounds: { southwest: { lat: 20.95, lng: 105.75 }, northeast: { lat: 21.12, lng: 105.95 } },
+    pois: [
+      { name: 'Hoan Kiem Lake', lat: 21.0285, lon: 105.8542, alt: 700, pitch: -30, heading: 0, buildingHeight: 25 },
+      { name: 'Hanoi Old Quarter', lat: 21.0350, lon: 105.8500, alt: 600, pitch: -32, heading: 180, buildingHeight: 20 },
+      { name: 'Temple of Literature', lat: 21.0293, lon: 105.8360, alt: 550, pitch: -28, heading: 90, buildingHeight: 20 },
+      { name: 'Ba Dinh Square', lat: 21.0369, lon: 105.8347, alt: 750, pitch: -30, heading: 270, buildingHeight: 30 },
+      { name: 'Tran Quoc Pagoda', lat: 21.0478, lon: 105.8370, alt: 650, pitch: -25, heading: 135, buildingHeight: 25 },
+    ],
+  },
+  'ho-chi-minh-city': {
+    name: 'Ho Chi Minh City',
+    country: 'Vietnam',
+    region: 'Ho Chi Minh',
+    groundElevation: 8,
+    viewBounds: { southwest: { lat: 10.70, lng: 106.60 }, northeast: { lat: 10.88, lng: 106.78 } },
+    pois: [
+      { name: 'Landmark 81', lat: 10.7950, lon: 106.7219, alt: 950, pitch: -18, heading: 215, buildingHeight: 461 },
+      { name: 'Bitexco Financial Tower', lat: 10.7716, lon: 106.7044, alt: 750, pitch: -22, heading: 45, buildingHeight: 262 },
+      { name: 'Ben Thanh Market', lat: 10.7725, lon: 106.6980, alt: 500, pitch: -30, heading: 180, buildingHeight: 25 },
+      { name: 'Saigon Opera House', lat: 10.7766, lon: 106.7032, alt: 450, pitch: -28, heading: 90, buildingHeight: 30 },
+      { name: 'Notre Dame Cathedral of Saigon', lat: 10.7798, lon: 106.6990, alt: 500, pitch: -25, heading: 225, buildingHeight: 60 },
+    ],
+  },
+  jakarta: {
+    name: 'Jakarta',
+    country: 'Indonesia',
+    region: 'DKI Jakarta',
+    groundElevation: 8,
+    viewBounds: { southwest: { lat: -6.35, lng: 106.70 }, northeast: { lat: -6.10, lng: 106.95 } },
+    pois: [
+      { name: 'National Monument (Monas)', lat: -6.1754, lon: 106.8272, alt: 750, pitch: -25, heading: 0, buildingHeight: 132 },
+      { name: 'Bundaran HI', lat: -6.1950, lon: 106.8230, alt: 600, pitch: -28, heading: 45, buildingHeight: 50 },
+      { name: 'Gelora Bung Karno Stadium', lat: -6.2186, lon: 106.8018, alt: 850, pitch: -32, heading: 180, buildingHeight: 45 },
+      { name: 'Wisma 46', lat: -6.2044, lon: 106.8202, alt: 750, pitch: -20, heading: 315, buildingHeight: 262 },
+      { name: 'Istiqlal Mosque', lat: -6.1702, lon: 106.8314, alt: 650, pitch: -28, heading: 90, buildingHeight: 60 },
+    ],
+  },
+  bali: {
+    name: 'Bali',
+    country: 'Indonesia',
+    region: 'Bali',
+    groundElevation: 25,
+    viewBounds: { southwest: { lat: -8.85, lng: 114.85 }, northeast: { lat: -8.30, lng: 115.70 } },
+    pois: [
+      { name: 'Tanah Lot Temple', lat: -8.6212, lon: 115.0868, alt: 650, pitch: -28, heading: 45, buildingHeight: 25 },
+      { name: 'Uluwatu Temple', lat: -8.8291, lon: 115.0849, alt: 750, pitch: -25, heading: 135, buildingHeight: 30 },
+      { name: 'Garuda Wisnu Kencana (GWK)', lat: -8.8104, lon: 115.1668, alt: 800, pitch: -22, heading: 0, buildingHeight: 121 },
+      { name: 'Sacred Monkey Forest Sanctuary', lat: -8.5191, lon: 115.2588, alt: 600, pitch: -30, heading: 180, buildingHeight: 25 },
+      { name: 'Besakih Mother Temple', lat: -8.3739, lon: 115.4509, alt: 900, pitch: -25, heading: 30, buildingHeight: 35 },
+    ],
+  },
+  manila: {
+    name: 'Manila',
+    country: 'Philippines',
+    region: 'Metro Manila',
+    groundElevation: 7,
+    viewBounds: { southwest: { lat: 14.45, lng: 120.90 }, northeast: { lat: 14.70, lng: 121.15 } },
+    pois: [
+      { name: 'Intramuros & Fort Santiago', lat: 14.5942, lon: 120.9704, alt: 650, pitch: -28, heading: 135, buildingHeight: 20 },
+      { name: 'Rizal Park (Luneta)', lat: 14.5826, lon: 120.9787, alt: 700, pitch: -30, heading: 0, buildingHeight: 25 },
+      { name: 'Bonifacio Global City (BGC)', lat: 14.5507, lon: 121.0494, alt: 800, pitch: -22, heading: 45, buildingHeight: 200 },
+      { name: 'Ayala Triangle Gardens', lat: 14.5568, lon: 121.0227, alt: 750, pitch: -25, heading: 315, buildingHeight: 180 },
+      { name: 'SM Mall of Asia', lat: 14.5352, lon: 120.9822, alt: 850, pitch: -32, heading: 90, buildingHeight: 30 },
+    ],
+  },
+  'bandar-seri-begawan': {
+    name: 'Bandar Seri Begawan',
+    country: 'Brunei',
+    region: 'Brunei-Muara',
+    groundElevation: 10,
+    viewBounds: { southwest: { lat: 4.85, lng: 114.90 }, northeast: { lat: 5.00, lng: 115.00 } },
+    pois: [
+      { name: 'Sultan Omar Ali Saifuddien Mosque', lat: 4.8897, lon: 114.9392, alt: 600, pitch: -28, heading: 45, buildingHeight: 52 },
+      { name: 'Jame Asr Hassanil Bolkiah', lat: 4.9022, lon: 114.9255, alt: 700, pitch: -25, heading: 180, buildingHeight: 60 },
+      { name: 'Kampong Ayer', lat: 4.8833, lon: 114.9458, alt: 850, pitch: -32, heading: 0, buildingHeight: 15 },
+      { name: 'RIPAS Bridge', lat: 4.8778, lon: 114.9511, alt: 800, pitch: -25, heading: 270, buildingHeight: 157 },
+      { name: 'Royal Regalia Museum', lat: 4.8925, lon: 114.9422, alt: 500, pitch: -28, heading: 90, buildingHeight: 25 },
+    ],
+  },
 };
 
 /** Shared spoken/search aliases. Values are canonical preset IDs. */
@@ -195,6 +349,36 @@ export const LOCATION_ALIASES = Object.freeze({
   penang: 'george-town',
   jb: 'johor-bahru',
   'johor bahru': 'johor-bahru',
+  kk: 'kota-kinabalu',
+  'kota kinabalu': 'kota-kinabalu',
+  kuching: 'kuching',
+  sg: 'singapore',
+  singapore: 'singapore',
+  bkk: 'bangkok',
+  bangkok: 'bangkok',
+  thailand: 'bangkok',
+  'chiang mai': 'chiang-mai',
+  chiangmai: 'chiang-mai',
+  hanoi: 'hanoi',
+  'ho chi minh': 'ho-chi-minh-city',
+  'ho chi minh city': 'ho-chi-minh-city',
+  saigon: 'ho-chi-minh-city',
+  hcmc: 'ho-chi-minh-city',
+  vietnam: 'ho-chi-minh-city',
+  vietname: 'ho-chi-minh-city',
+  jkt: 'jakarta',
+  jakarta: 'jakarta',
+  indonesia: 'jakarta',
+  bali: 'bali',
+  denpasar: 'bali',
+  manila: 'manila',
+  'metro manila': 'manila',
+  philippines: 'manila',
+  philipene: 'manila',
+  philippine: 'manila',
+  bsb: 'bandar-seri-begawan',
+  'bandar seri begawan': 'bandar-seri-begawan',
+  brunei: 'bandar-seri-begawan',
 });
 
 export function normalizePresetLocationId(value) {
@@ -432,18 +616,22 @@ export const CANCELLED_SEARCH = Object.freeze({ cancelled: true });
  * default; precise landmarks/buildings use close landmark framing.
  */
 export async function searchAndFlyTo(viewer, query, options = {}) {
-  const aliasId = normalizePresetLocationId(query);
-  if (aliasId && CITY_POIS[aliasId]) {
-    const city = CITY_POIS[aliasId];
-    const result = flyToPresetLocation(viewer, aliasId, {
-      ...options,
-      viewMode: options.viewMode || 'overview',
-    });
-    if (!result) throw new Error(`Unable to frame ${city.name}`);
-    return { label: city.name, navigationMode: 'malaysia-preset', rangeM: result.rangeM };
-  }
   const apiKey = window.__GOOGLE_MAPS_API_KEY__ || import.meta.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) throw new Error('No Google Maps API key available for geocoding');
+  if (!apiKey) {
+    const aliasId = normalizePresetLocationId(query);
+    if (aliasId && CITY_POIS[aliasId]) {
+      const city = CITY_POIS[aliasId];
+      const beforeFly = typeof options.beforeFly === 'function' ? options.beforeFly : null;
+      if (beforeFly && beforeFly() === false) return CANCELLED_SEARCH;
+      const result = flyToPresetLocation(viewer, aliasId, {
+        ...options,
+        viewMode: options.viewMode || 'overview',
+      });
+      if (!result) throw new Error(`Unable to frame ${city.name}`);
+      return { label: city.name, navigationMode: 'city-overview', rangeM: result.rangeM };
+    }
+    throw new Error('No Google Maps API key available for geocoding');
+  }
 
   const beforeFly = typeof options.beforeFly === 'function' ? options.beforeFly : null;
   const mayFly = () => beforeFly === null || beforeFly() !== false;

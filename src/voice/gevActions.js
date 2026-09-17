@@ -1194,6 +1194,23 @@ const RADIO_COUNTRY_CENTERS = new Map([
   ['usa', { lat: 39.8, lon: -98.6, country: 'US', label: 'United States' }],
   ['united states', { lat: 39.8, lon: -98.6, country: 'US', label: 'United States' }],
   ['united states of america', { lat: 39.8, lon: -98.6, country: 'US', label: 'United States' }],
+  ['malaysia', { lat: 4.21, lon: 101.97, country: 'MY', label: 'Malaysia' }],
+  ['my', { lat: 4.21, lon: 101.97, country: 'MY', label: 'Malaysia' }],
+  ['singapore', { lat: 1.35, lon: 103.82, country: 'SG', label: 'Singapore' }],
+  ['sg', { lat: 1.35, lon: 103.82, country: 'SG', label: 'Singapore' }],
+  ['thailand', { lat: 13.75, lon: 100.50, country: 'TH', label: 'Thailand' }],
+  ['th', { lat: 13.75, lon: 100.50, country: 'TH', label: 'Thailand' }],
+  ['vietnam', { lat: 14.05, lon: 108.27, country: 'VN', label: 'Vietnam' }],
+  ['vietname', { lat: 14.05, lon: 108.27, country: 'VN', label: 'Vietnam' }],
+  ['vn', { lat: 14.05, lon: 108.27, country: 'VN', label: 'Vietnam' }],
+  ['indonesia', { lat: -0.78, lon: 113.92, country: 'ID', label: 'Indonesia' }],
+  ['id', { lat: -0.78, lon: 113.92, country: 'ID', label: 'Indonesia' }],
+  ['philippines', { lat: 12.87, lon: 121.77, country: 'PH', label: 'Philippines' }],
+  ['philipene', { lat: 12.87, lon: 121.77, country: 'PH', label: 'Philippines' }],
+  ['philippine', { lat: 12.87, lon: 121.77, country: 'PH', label: 'Philippines' }],
+  ['ph', { lat: 12.87, lon: 121.77, country: 'PH', label: 'Philippines' }],
+  ['brunei', { lat: 4.53, lon: 114.72, country: 'BN', label: 'Brunei' }],
+  ['bn', { lat: 4.53, lon: 114.72, country: 'BN', label: 'Brunei' }],
 ]);
 
 /** Resolve curated cities and common country requests without moving the camera. */
