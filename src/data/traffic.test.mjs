@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import trafficLayer, {
   deriveTrafficFlowError,
   trafficFeedPresentation,
+  _collectTrafficDetectionObjectsForTest,
 } from './traffic.js';
 import { DataLayerManager, layerFeedState } from './manager.js';
 
@@ -20,6 +21,75 @@ import { DataLayerManager, layerFeedState } from './manager.js';
  * remedy without claiming one.
  */
 const LIVE_CLAIM = /\bLIVE\b|\bGPS\b|\breal[- ]?time\b/;
+
+test('traffic detections reuse per-dot records without changing stride or keyless shape', () => {
+  const dots = Array.from({ length: 6 }, (_, index) => ({
+    point: { position: { x: index, y: 0, z: 0 } },
+    bucket: 'sim',
+  }));
+  const cache = new WeakMap();
+
+  const first = _collectTrafficDetectionObjectsForTest(
+    dots, { maxCount: 2, seed: 0 }, { liveMode: false, cache },
+  );
+  const second = _collectTrafficDetectionObjectsForTest(
+    dots, { maxCount: 2, seed: 0 }, { liveMode: false, cache },
+  );
+
+  assert.notEqual(first, second, 'public result arrays remain caller-owned');
+  assert.deepEqual(first.map(({ id }) => id), ['VEH-0000', 'VEH-0003']);
+  assert.equal(first[0], second[0], 'stable dots reuse the observation object');
+  assert.equal(first[1], second[1]);
+  assert.deepEqual(first[0], {
+    position: dots[0].point.position,
+    id: 'VEH-0000',
+    type: 'VEH',
+  });
+  assert.equal('tier' in first[0], false, 'keyless mode must not publish a tier override');
+
+  const shifted = _collectTrafficDetectionObjectsForTest(
+    dots, { maxCount: 2, seed: 1 }, { liveMode: false, cache },
+  );
+  assert.deepEqual(shifted.map(({ id }) => id), ['VEH-0001', 'VEH-0004']);
+});
+
+test('traffic detection cache refreshes position and live tier in place', () => {
+  const firstPosition = { x: 1, y: 2, z: 3 };
+  const dot = { point: { position: firstPosition }, bucket: 'free' };
+  const cache = new WeakMap();
+
+  const sim = _collectTrafficDetectionObjectsForTest(
+    [dot], {}, { liveMode: false, cache },
+  )[0];
+  assert.equal('tier' in sim, false);
+
+  dot.point.position = { x: 4, y: 5, z: 6 };
+  const live = _collectTrafficDetectionObjectsForTest(
+    [dot], {}, { liveMode: true, cache },
+  )[0];
+  assert.equal(live, sim, 'mode transition updates the cached observation');
+  assert.equal(live.position, dot.point.position);
+  assert.equal(live.tier, 'veh_free');
+
+  dot.bucket = 'jam';
+  const jam = _collectTrafficDetectionObjectsForTest(
+    [dot], {}, { liveMode: true, cache },
+  )[0];
+  assert.equal(jam, sim);
+  assert.equal(jam.tier, 'veh_jam');
+
+  dot.bucket = 'sim';
+  const noData = _collectTrafficDetectionObjectsForTest(
+    [dot], {}, { liveMode: true, cache },
+  )[0];
+  assert.equal(noData.tier, 'veh_nodata');
+
+  const keylessAgain = _collectTrafficDetectionObjectsForTest(
+    [dot], {}, { liveMode: false, cache },
+  )[0];
+  assert.equal(keylessAgain, sim);
+  assert.equal('tier' in keylessAgain, false, 'leaving live mode removes the tier property entirely');
+});
 
 test('a superseded flow fetch is not an outage', () => {
   assert.equal(deriveTrafficFlowError({ name: 'AbortError', message: 'aborted' }), null);

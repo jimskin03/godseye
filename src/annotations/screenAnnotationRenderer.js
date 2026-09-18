@@ -62,7 +62,6 @@ export function createScreenAnnotationRenderer(viewer, {
   const scene = viewer.scene;
   const occluder = new Cesium.EllipsoidalOccluder(Cesium.Ellipsoid.WGS84, scene.camera.positionWC);
   const records = new Map(); // anno.id -> { anno, group, parts }
-  const scratch = new Cesium.Cartesian2();
   const scratchDir = new Cesium.Cartesian3();
   // Per-point ground height cache. Marks must sit on the real surface, not at
   // sea level — otherwise in elevated cities (Austin ~150 m) they project
@@ -72,6 +71,37 @@ export function createScreenAnnotationRenderer(viewer, {
   const HEIGHT_CACHE_SOFT = 600; // target size; over this we evict keys not used this frame
   const HEIGHT_CACHE_HARD = 8000; // absolute ceiling (one big ring + others) — never exceeded
   let projGen = 0; // bumped each projection frame; entries used this frame are "hot"
+  const placedCallouts = [];
+
+  function projectionPoint(lon, lat) {
+    return {
+      lon,
+      lat,
+      heightKey: `${lon.toFixed(5)},${lat.toFixed(5)}`,
+      clampWorld: new Cesium.Cartesian3(),
+      clampWorldReady: false,
+      world: new Cesium.Cartesian3(),
+      worldHeight: Number.NaN,
+      screen: new Cesium.Cartesian2(),
+    };
+  }
+
+  function buildProjectionCache(anno) {
+    const cache = {
+      anchor: null,
+      to: null,
+      ring: null,
+      path: null,
+      pointStrings: [],
+      visiblePoints: [],
+      projectedPoints: [],
+    };
+    if (anno?.anchor) cache.anchor = projectionPoint(anno.anchor.lon, anno.anchor.lat);
+    if (anno?.to) cache.to = projectionPoint(anno.to.lon, anno.to.lat);
+    if (Array.isArray(anno?.ring)) cache.ring = anno.ring.map(([lon, lat]) => projectionPoint(lon, lat));
+    if (Array.isArray(anno?.path)) cache.path = anno.path.map((pt) => projectionPoint(pt.lon, pt.lat));
+    return cache;
+  }
   function trimHeightCache() {
     if (heightCache.size <= HEIGHT_CACHE_SOFT) return;
     // Evict COLD keys first (not touched this frame), so a single large area/route
@@ -100,8 +130,8 @@ export function createScreenAnnotationRenderer(viewer, {
 
   // Best-effort surface height under a coordinate (clamps onto the 3D tiles).
   // Returns 0 until the tile loads, then caches the validated height.
-  function groundHeight(lon, lat) {
-    const key = `${lon.toFixed(5)},${lat.toFixed(5)}`;
+  function groundHeight(point) {
+    const key = point.heightKey;
     const cached = heightCache.get(key);
     if (cached && cached.settled) {
       // Mark hot for this frame + bump to most-recently-used so heights for live
@@ -113,7 +143,17 @@ export function createScreenAnnotationRenderer(viewer, {
     }
     try {
       if (scene.clampToHeightSupported && typeof scene.clampToHeight === 'function') {
-        const c = scene.clampToHeight(Cesium.Cartesian3.fromDegrees(lon, lat, 0));
+        if (!point.clampWorldReady) {
+          Cesium.Cartesian3.fromDegrees(
+            point.lon,
+            point.lat,
+            0,
+            Cesium.Ellipsoid.WGS84,
+            point.clampWorld,
+          );
+          point.clampWorldReady = true;
+        }
+        const c = scene.clampToHeight(point.clampWorld);
         if (c) {
           const h = Cesium.Cartographic.fromCartesian(c).height;
           if (Number.isFinite(h) && h > -430 && h < 9000) {
@@ -196,8 +236,9 @@ export function createScreenAnnotationRenderer(viewer, {
     // lost context). Previously a throw past the DOM insert left an ORPHANED
     // <g>: the engine's rollback only deletes its own map entry, so the next
     // annotate of the same geometry stacked a fresh mark on top of the corpse.
-    records.set(anno.id, { anno, group, parts });
     try {
+      const projection = buildProjectionCache(anno);
+      records.set(anno.id, { anno, group, parts, projection });
       svg.appendChild(group);
       // trigger draw-on / fade-in on the next frame
       requestAnimationFrame(() => group.classList.add('gev-in'));
@@ -238,6 +279,7 @@ export function createScreenAnnotationRenderer(viewer, {
       return;
     }
     rec.anno = anno;
+    rec.projection = buildProjectionCache(anno);
 
     if (empty) {
       for (const child of Array.from(rec.group.children)) child.remove();
@@ -257,7 +299,7 @@ export function createScreenAnnotationRenderer(viewer, {
       rec.parts.ringInner?.remove();
       delete rec.parts.ringOuter;
       delete rec.parts.ringInner;
-      rec.parts.dot.setAttribute('r', String(LABEL_DOT_R));
+      setSvgAttribute(rec.parts.dot, 'r', String(LABEL_DOT_R));
       projectAll();
       return;
     }
@@ -265,23 +307,39 @@ export function createScreenAnnotationRenderer(viewer, {
     // Area-type updates route through the hybrid proxy only.
   }
 
-  function project(lon, lat) {
+  function project(point) {
+    if (!point) return null;
     // Anchor at the real surface height (cached + validated), so marks sit on
     // the ground/building instead of at sea level. The settle-once cache keeps
     // it stable (no per-frame jitter that earlier broke nearby projections).
-    const world = Cesium.Cartesian3.fromDegrees(lon, lat, groundHeight(lon, lat));
+    const height = groundHeight(point);
+    if (!Object.is(point.worldHeight, height)) {
+      Cesium.Cartesian3.fromDegrees(
+        point.lon,
+        point.lat,
+        height,
+        Cesium.Ellipsoid.WGS84,
+        point.world,
+      );
+      point.worldHeight = height;
+    }
+    const world = point.world;
     // Reject points behind the camera (they produce wrapped/extreme coords).
     Cesium.Cartesian3.subtract(world, scene.camera.positionWC, scratchDir);
     if (Cesium.Cartesian3.dot(scratchDir, scene.camera.directionWC) <= 0) return null;
     // Reject points beyond the globe horizon.
     if (!occluder.isPointVisible(world)) return null;
-    const win = Cesium.SceneTransforms.worldToWindowCoordinates(scene, world, scratch);
+    const win = Cesium.SceneTransforms.worldToWindowCoordinates(scene, world, point.screen);
     if (!win || !Number.isFinite(win.x) || !Number.isFinite(win.y)) return null;
     // Reject absurd off-screen projections (anchor not in view).
     const w = scene.canvas.clientWidth || scene.canvas.width;
     const h = scene.canvas.clientHeight || scene.canvas.height;
     if (win.x < -w || win.x > 2 * w || win.y < -h || win.y > 2 * h) return null;
-    return { x: win.x, y: win.y };
+    if (win !== point.screen) {
+      point.screen.x = win.x;
+      point.screen.y = win.y;
+    }
+    return point.screen;
   }
 
   // Tracked-entity z-order: the tracked aircraft is a Cesium billboard in the
@@ -355,37 +413,38 @@ export function createScreenAnnotationRenderer(viewer, {
     occluder.cameraPosition = scene.camera.positionWC;
     const h = scene.canvas.clientHeight || scene.canvas.height;
     const w = scene.canvas.clientWidth || scene.canvas.width;
-    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    setSvgAttribute(svg, 'viewBox', `0 0 ${w} ${h}`);
     // Shrink point-marker geometry as the camera pulls back (declutter the blob).
     const mScale = markScale(viewer.camera.positionCartographic?.height ?? 1000);
 
     for (const rec of records.values()) {
-      const { anno, group, parts } = rec;
+      const { anno, group, parts, projection } = rec;
       if (rec.hidden) {
-        group.style.display = 'none';
+        setDisplay(group, 'none');
         continue;
       }
-      group.setAttribute('opacity', String(anno.alpha ?? 1));
+      setSvgAttribute(group, 'opacity', String(anno.alpha ?? 1));
 
       if (anno.type === 'area' && parts.poly) {
-        const pts = [];
+        const pts = projection.pointStrings;
+        pts.length = 0;
         let cx = 0; let cy = 0; let n = 0;
-        for (const [lon, lat] of anno.ring) {
-          const p = project(lon, lat);
+        for (const point of projection.ring || []) {
+          const p = project(point);
           if (!p) continue;
           pts.push(`${p.x.toFixed(1)},${p.y.toFixed(1)}`);
           cx += p.x; cy += p.y; n++;
         }
         if (pts.length >= 3) {
-          parts.poly.setAttribute('points', pts.join(' '));
-          group.style.display = '';
+          setSvgAttribute(parts.poly, 'points', pts.join(' '));
+          setDisplay(group, '');
           if (parts.label) positionCallout(parts.label, cx / n, cy / n - 6, true);
         } else {
-          group.style.display = 'none';
+          setDisplay(group, 'none');
         }
       } else if (anno.type === 'arrow' && parts.path) {
-        const a = project(anno.anchor.lon, anno.anchor.lat);
-        const b = project(anno.to.lon, anno.to.lat);
+        const a = project(projection.anchor);
+        const b = project(projection.to);
         if (a && b) {
           // gentle arc so the connector reads as a drawn gesture, not a ruler line
           const mx = (a.x + b.x) / 2; const my = (a.y + b.y) / 2;
@@ -394,67 +453,97 @@ export function createScreenAnnotationRenderer(viewer, {
           const bow = Math.min(60, len * 0.18);
           const ctrlX = mx - (dy / len) * bow;
           const ctrlY = my + (dx / len) * bow;
-          parts.path.setAttribute('d', `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} Q ${ctrlX.toFixed(1)} ${ctrlY.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`);
-          group.style.display = '';
+          setSvgAttribute(parts.path, 'd', `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} Q ${ctrlX.toFixed(1)} ${ctrlY.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`);
+          setDisplay(group, '');
           // Anchor the label to the (stable) endpoint midpoint, lifted toward the bow.
           if (parts.label) positionCallout(parts.label, mx + (ctrlX - mx) * 0.5, my + (ctrlY - my) * 0.5 - 8, true);
         } else {
-          group.style.display = 'none';
+          setDisplay(group, 'none');
         }
       } else if (anno.type === 'route' && parts.poly) {
-        const projected = anno.path.map((pt) => project(pt.lon, pt.lat));
-        const pts = [];
-        for (const p of projected) {
-          if (p) pts.push(`${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+        const projected = projection.projectedPoints;
+        const visible = projection.visiblePoints;
+        const pts = projection.pointStrings;
+        projected.length = projection.path?.length || 0;
+        visible.length = 0;
+        pts.length = 0;
+        for (let i = 0; i < projected.length; i++) {
+          const p = project(projection.path[i]);
+          projected[i] = p;
+          if (p) {
+            visible.push(p);
+            pts.push(`${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+          }
         }
         if (pts.length >= 2) {
-          parts.poly.setAttribute('points', pts.join(' '));
+          setSvgAttribute(parts.poly, 'points', pts.join(' '));
           // dots at each resolvable waypoint; hide the rest
           parts.dots.forEach((dot, i) => {
             const p = projected[i];
-            if (p) { dot.setAttribute('cx', p.x.toFixed(1)); dot.setAttribute('cy', p.y.toFixed(1)); dot.style.display = ''; }
-            else { dot.style.display = 'none'; }
+            if (p) {
+              setSvgAttribute(dot, 'cx', p.x.toFixed(1));
+              setSvgAttribute(dot, 'cy', p.y.toFixed(1));
+              setDisplay(dot, '');
+            } else {
+              setDisplay(dot, 'none');
+            }
           });
-          group.style.display = '';
+          setDisplay(group, '');
           // label at the middle waypoint
-          const mid = projected.filter(Boolean)[Math.floor(projected.filter(Boolean).length / 2)];
+          const mid = visible[Math.floor(visible.length / 2)];
           if (parts.label && mid) positionCallout(parts.label, mid.x, mid.y - 12, true);
         } else {
-          group.style.display = 'none';
+          setDisplay(group, 'none');
         }
       } else {
-        const p = project(anno.anchor.lon, anno.anchor.lat);
+        const p = project(projection.anchor);
         if (p) {
-          group.style.display = '';
+          setDisplay(group, '');
           const baseDotR = anno.type === 'label' ? LABEL_DOT_R : DOT_R;
-          if (parts.dot) { parts.dot.setAttribute('cx', p.x.toFixed(1)); parts.dot.setAttribute('cy', p.y.toFixed(1)); parts.dot.setAttribute('r', (baseDotR * mScale).toFixed(1)); }
-          if (parts.ringOuter) { parts.ringOuter.setAttribute('cx', p.x.toFixed(1)); parts.ringOuter.setAttribute('cy', p.y.toFixed(1)); parts.ringOuter.setAttribute('r', (RING_OUTER_R * mScale).toFixed(1)); }
-          if (parts.ringInner) { parts.ringInner.setAttribute('cx', p.x.toFixed(1)); parts.ringInner.setAttribute('cy', p.y.toFixed(1)); parts.ringInner.setAttribute('r', (RING_INNER_R * mScale).toFixed(1)); }
+          const px = p.x.toFixed(1);
+          const py = p.y.toFixed(1);
+          if (parts.dot) {
+            setSvgAttribute(parts.dot, 'cx', px);
+            setSvgAttribute(parts.dot, 'cy', py);
+            setSvgAttribute(parts.dot, 'r', (baseDotR * mScale).toFixed(1));
+          }
+          if (parts.ringOuter) {
+            setSvgAttribute(parts.ringOuter, 'cx', px);
+            setSvgAttribute(parts.ringOuter, 'cy', py);
+            setSvgAttribute(parts.ringOuter, 'r', (RING_OUTER_R * mScale).toFixed(1));
+          }
+          if (parts.ringInner) {
+            setSvgAttribute(parts.ringInner, 'cx', px);
+            setSvgAttribute(parts.ringInner, 'cy', py);
+            setSvgAttribute(parts.ringInner, 'r', (RING_INNER_R * mScale).toFixed(1));
+          }
           if (parts.label) {
             // Keep the callout tucked near the (now smaller) reticle by scaling its offset.
             const lx = p.x + 18 * mScale; const ly = p.y - 34 * mScale;
             positionCallout(parts.label, lx, ly, false);
             if (parts.leader) {
-              parts.leader.setAttribute('x1', p.x.toFixed(1)); parts.leader.setAttribute('y1', p.y.toFixed(1));
-              parts.leader.setAttribute('x2', lx.toFixed(1)); parts.leader.setAttribute('y2', (ly + parts.label.height).toFixed(1));
+              setSvgAttribute(parts.leader, 'x1', px);
+              setSvgAttribute(parts.leader, 'y1', py);
+              setSvgAttribute(parts.leader, 'x2', lx.toFixed(1));
+              setSvgAttribute(parts.leader, 'y2', (ly + parts.label.height).toFixed(1));
               parts.label._leader = parts.leader; // so de-collision can re-point it
             }
           }
         } else {
-          group.style.display = 'none';
+          setDisplay(group, 'none');
         }
       }
     }
 
     // Keep clustered callouts readable.
-    const placed = [];
+    placedCallouts.length = 0;
     for (const rec of records.values()) {
       const cal = rec.parts.label;
       if (cal && cal.sized && rec.group.style.display !== 'none' && Number.isFinite(cal._x)) {
-        placed.push(cal);
+        placedCallouts.push(cal);
       }
     }
-    if (placed.length > 1) decollideCallouts(placed);
+    if (placedCallouts.length > 1) decollideCallouts(placedCallouts);
 
     // Tracked-entity z-order — runs AFTER all geometry + callout de-collision so each
     // group's bbox reflects its final on-screen extent. Any mark whose bbox INTERSECTS
@@ -490,7 +579,7 @@ export function createScreenAnnotationRenderer(viewer, {
       // (The CSS `transition: opacity` was removed from .gev-anno so this per-frame JS ease
       // is the ONLY easing — previously the two fought and produced an opacity oscillation.)
       if (rec._trackedFade !== 1) {
-        group.setAttribute('opacity', String((anno.alpha ?? 1) * rec._trackedFade));
+        setSvgAttribute(group, 'opacity', String((anno.alpha ?? 1) * rec._trackedFade));
       }
     }
   }
@@ -523,6 +612,16 @@ export function createScreenAnnotationRenderer(viewer, {
 }
 
 // --- SVG helpers ------------------------------------------------------------
+
+function setSvgAttribute(node, name, value) {
+  if (!node) return;
+  const next = String(value);
+  if (node.getAttribute(name) !== next) node.setAttribute(name, next);
+}
+
+function setDisplay(node, value) {
+  if (node?.style && node.style.display !== value) node.style.display = value;
+}
 
 function buildOverlay() {
   const layer = document.createElement('div');
@@ -589,7 +688,7 @@ function positionCallout(callout, x, y, center) {
   const tx = center ? x - callout.width / 2 : x;
   callout._x = tx;
   callout._y = y;
-  callout.node.setAttribute('transform', `translate(${tx.toFixed(1)}, ${y.toFixed(1)})`);
+  setSvgAttribute(callout.node, 'transform', `translate(${tx.toFixed(1)}, ${y.toFixed(1)})`);
 }
 
 /**
@@ -607,10 +706,10 @@ function decollideCallouts(callouts) {
       const overlapY = a._y < b._y + b.height && a._y + a.height > b._y;
       if (overlapX && overlapY) {
         a._y = b._y + b.height + 5;
-        a.node.setAttribute('transform', `translate(${a._x.toFixed(1)}, ${a._y.toFixed(1)})`);
+        setSvgAttribute(a.node, 'transform', `translate(${a._x.toFixed(1)}, ${a._y.toFixed(1)})`);
         if (a._leader) {
-          a._leader.setAttribute('x2', a._x.toFixed(1));
-          a._leader.setAttribute('y2', a._y.toFixed(1));
+          setSvgAttribute(a._leader, 'x2', a._x.toFixed(1));
+          setSvgAttribute(a._leader, 'y2', a._y.toFixed(1));
         }
       }
     }

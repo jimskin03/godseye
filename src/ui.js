@@ -179,6 +179,7 @@ import {
   cockpitAnchorCorrectionStep,
   cockpitAltitudeDisplayFt,
   cockpitGroundSafeHeight,
+  cockpitSignalRenderSignature,
   cockpitSurfaceWaitExpired,
   cockpitUiUpdateDue,
   compassDivisions,
@@ -659,6 +660,38 @@ function setCockpitRollingValue(element, text, numericValue, {
   element.replaceChildren(fragment);
 }
 
+function setCockpitText(element, value) {
+  if (!element) return false;
+  const next = String(value);
+  if (element.textContent === next) return false;
+  element.textContent = next;
+  return true;
+}
+
+function setCockpitStyleProperty(element, name, value) {
+  if (!element) return false;
+  const next = String(value);
+  if (element.style.getPropertyValue(name) === next) return false;
+  element.style.setProperty(name, next);
+  return true;
+}
+
+function setCockpitDataset(element, name, value) {
+  if (!element) return false;
+  const next = String(value);
+  if (element.dataset[name] === next) return false;
+  element.dataset[name] = next;
+  return true;
+}
+
+function setCockpitHidden(element, hidden) {
+  if (!element) return false;
+  const next = Boolean(hidden);
+  if (element.hidden === next) return false;
+  element.hidden = next;
+  return true;
+}
+
 class CockpitViewController {
   constructor(viewer, {
     onVisionChange = null,
@@ -696,10 +729,12 @@ class CockpitViewController {
     this.speedRim = document.getElementById('cockpit-speed-rim');
     this.speedRimValue = document.getElementById('cockpit-speed-rim-value');
     this.speedRimTicks = Array.from(document.querySelectorAll('[data-speed-rim-tick]'));
+    this.speedRimTickLabels = this.speedRimTicks.map((element) => element.querySelector('b'));
     this.altitude = document.getElementById('cockpit-altitude-value');
     this.altitudeRim = document.getElementById('cockpit-altitude-rim');
     this.altitudeRimValue = document.getElementById('cockpit-altitude-rim-value');
     this.altitudeRimTicks = Array.from(document.querySelectorAll('[data-altitude-rim-tick]'));
+    this.altitudeRimTickLabels = this.altitudeRimTicks.map((element) => element.querySelector('b'));
     this.headingValue = document.getElementById('cockpit-heading-value');
     this.compassTape = document.getElementById('cockpit-compass-tape');
     this.clock = document.getElementById('cockpit-clock');
@@ -769,6 +804,7 @@ class CockpitViewController {
     this.signalUserCollapsed = false;
     this.signalItems = [];
     this.signalSignatures = new Map();
+    this.signalRenderSignature = null;
     this.briefPageIndex = 0;
     this.briefAutoRotateEnabled = false;
     this.briefTimer = null;
@@ -1017,7 +1053,7 @@ class CockpitViewController {
   }
 
   clearPredictiveRoute() {
-    if (this.routeDirection) this.routeDirection.hidden = true;
+    setCockpitHidden(this.routeDirection, true);
   }
 
   onKeyDown(event) {
@@ -1388,29 +1424,27 @@ class CockpitViewController {
   updateHud(info, nowMs = performance.now(), forceContext = false) {
     this.lastAircraftInfo = info;
     const heading = normalizeHeading(this.heading ?? info.track ?? 0);
-    if (this.callsign) {
-      this.callsign.textContent = info.callsign || info.registration || info.icao24 || 'AIRCRAFT';
-    }
+    setCockpitText(this.callsign, info.callsign || info.registration || info.icao24 || 'AIRCRAFT');
     const speedKt = Number.isFinite(info.velocityMps) ? info.velocityMps * 1.94384 : null;
+    const speedText = formatSpeedRulerTick(speedKt);
     setCockpitRollingValue(
       this.speed,
-      formatSpeedRulerTick(speedKt),
+      speedText,
       speedKt,
       { immediate: forceContext },
     );
     if (this.speedRim) this.speedRim.classList.toggle('unavailable', speedKt === null);
-    if (this.speedRimValue) this.speedRimValue.textContent = formatSpeedRulerTick(speedKt);
+    setCockpitText(this.speedRimValue, speedText);
     const speedTicks = speedRulerTicks(speedKt, this.speedRimTicks.length);
     this.speedRimTicks.forEach((element, index) => {
       const tick = speedTicks[index];
-      element.hidden = !tick;
+      setCockpitHidden(element, !tick);
       if (!tick) return;
-      element.style.setProperty('--slot', tick.slot.toFixed(4));
-      element.style.setProperty('--depth', tick.depth.toFixed(4));
-      element.style.setProperty('--curve', altitudeRulerCurveInset(tick.slot).toFixed(5));
+      setCockpitStyleProperty(element, '--slot', tick.slot.toFixed(4));
+      setCockpitStyleProperty(element, '--depth', tick.depth.toFixed(4));
+      setCockpitStyleProperty(element, '--curve', altitudeRulerCurveInset(tick.slot).toFixed(5));
       element.classList.toggle('major', tick.major);
-      const label = element.querySelector('b');
-      if (label) label.textContent = formatSpeedRulerTick(tick.valueKt);
+      setCockpitText(this.speedRimTickLabels[index], formatSpeedRulerTick(tick.valueKt));
     });
     const altitudeFt = cockpitAltitudeDisplayFt(info.altitudeM, info.onGround);
     if (this.altitude) {
@@ -1427,20 +1461,17 @@ class CockpitViewController {
       );
     }
     if (this.altitudeRim) this.altitudeRim.classList.toggle('unavailable', altitudeFt === null);
-    if (this.altitudeRimValue) {
-      this.altitudeRimValue.textContent = formatAltitudeRulerTick(altitudeFt);
-    }
+    setCockpitText(this.altitudeRimValue, formatAltitudeRulerTick(altitudeFt));
     const altitudeTicks = altitudeRulerTicks(altitudeFt, this.altitudeRimTicks.length);
     this.altitudeRimTicks.forEach((element, index) => {
       const tick = altitudeTicks[index];
-      element.hidden = !tick;
+      setCockpitHidden(element, !tick);
       if (!tick) return;
-      element.style.setProperty('--slot', tick.slot.toFixed(4));
-      element.style.setProperty('--depth', tick.depth.toFixed(4));
-      element.style.setProperty('--curve', altitudeRulerCurveInset(tick.slot).toFixed(5));
+      setCockpitStyleProperty(element, '--slot', tick.slot.toFixed(4));
+      setCockpitStyleProperty(element, '--depth', tick.depth.toFixed(4));
+      setCockpitStyleProperty(element, '--curve', altitudeRulerCurveInset(tick.slot).toFixed(5));
       element.classList.toggle('major', tick.major);
-      const label = element.querySelector('b');
-      if (label) label.textContent = formatAltitudeRulerTick(tick.valueFt);
+      setCockpitText(this.altitudeRimTickLabels[index], formatAltitudeRulerTick(tick.valueFt));
     });
     setCockpitRollingValue(
       this.headingValue,
@@ -1461,19 +1492,22 @@ class CockpitViewController {
           .join('');
       }
     }
-    if (this.clock) this.clock.textContent = new Date().toISOString().slice(11, 19) + 'Z';
+    setCockpitText(this.clock, new Date().toISOString().slice(11, 19) + 'Z');
     if (this.position) {
       const lat = Number.isFinite(info.latitude)
         ? `${Math.abs(info.latitude).toFixed(3)}°${info.latitude >= 0 ? 'N' : 'S'}` : '--';
       const lon = Number.isFinite(info.longitude)
         ? `${Math.abs(info.longitude).toFixed(3)}°${info.longitude >= 0 ? 'E' : 'W'}` : '--';
-      this.position.textContent = `${lat} · ${lon}`;
+      setCockpitText(this.position, lat + ' · ' + lon);
     }
     if (this.aircraftMeta) {
       const feedState = this.surfaceAcquiring
         ? 'ACQUIRING SURFACE'
         : (this.surfaceFallback ? 'SURFACE FALLBACK' : (info.stale ? 'STALE FEED' : 'LIVE TRACK'));
-      this.aircraftMeta.textContent = `${info.layerId === 'military' ? 'MILITARY' : 'COMMERCIAL'} · ${feedState} · COURSE ALIGNED`;
+      setCockpitText(
+        this.aircraftMeta,
+        (info.layerId === 'military' ? 'MILITARY' : 'COMMERCIAL') + ' · ' + feedState + ' · COURSE ALIGNED',
+      );
     }
     this.updateRoute(info);
     if (forceContext
@@ -1483,7 +1517,7 @@ class CockpitViewController {
       this.maybeRefreshRegionalBrief(info);
       this.updateContext(info, heading);
     }
-    if (this.hud) this.hud.dataset.layer = info.layerId || 'flights';
+    setCockpitDataset(this.hud, 'layer', info.layerId || 'flights');
   }
 
   updateRoute(info) {
@@ -1491,14 +1525,13 @@ class CockpitViewController {
     const destination = info?.route?.destination;
     const validDestination = Number.isFinite(destination?.lat) && Number.isFinite(destination?.lon);
     const routeLabel = (airport) => [airport?.code, airport?.name].filter(Boolean).join(' · ') || 'UNKNOWN';
-    if (this.routeFrom) this.routeFrom.textContent = routeLabel(origin);
-    if (this.routeTo) this.routeTo.textContent = routeLabel(destination);
-    if (this.routeStatus) {
-      this.routeStatus.textContent = validDestination
-        ? 'ARROW · ESTIMATED DIRECTION'
-        : 'ROUTE DATA UNAVAILABLE';
-    }
-    if (this.route) this.route.hidden = !origin && !destination;
+    setCockpitText(this.routeFrom, routeLabel(origin));
+    setCockpitText(this.routeTo, routeLabel(destination));
+    setCockpitText(
+      this.routeStatus,
+      validDestination ? 'ARROW · ESTIMATED DIRECTION' : 'ROUTE DATA UNAVAILABLE',
+    );
+    setCockpitHidden(this.route, !origin && !destination);
     if (!validDestination || !Number.isFinite(info?.longitude) || !Number.isFinite(info?.latitude)) {
       this.clearPredictiveRoute();
       return;
@@ -1516,12 +1549,17 @@ class CockpitViewController {
     }
     if (this.routeDirection) {
       const displayedRelative = Math.max(-120, Math.min(120, relative));
-      this.routeDirection.hidden = false;
-      this.routeDirection.style.setProperty('--route-angle', `${displayedRelative.toFixed(2)}deg`);
+      setCockpitHidden(this.routeDirection, false);
+      setCockpitStyleProperty(
+        this.routeDirection,
+        '--route-angle',
+        displayedRelative.toFixed(2) + 'deg',
+      );
     }
-    if (this.routeDirectionLabel) {
-      this.routeDirectionLabel.textContent = `DEST ${String(Math.round(destinationBearing)).padStart(3, '0')}°`;
-    }
+    setCockpitText(
+      this.routeDirectionLabel,
+      'DEST ' + String(Math.round(destinationBearing)).padStart(3, '0') + '°',
+    );
   }
 
   updateContext(info, heading) {
@@ -1858,6 +1896,9 @@ class CockpitViewController {
 
   renderCockpitSignals() {
     if (!this.signalList) return;
+    const signature = cockpitSignalRenderSignature(this.signalItems);
+    if (signature === this.signalRenderSignature) return;
+    this.signalRenderSignature = signature;
     this.signalList.replaceChildren(...this.signalItems.map((item) => {
       const entry = document.createElement('li');
       entry.className = item.tone;

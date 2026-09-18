@@ -145,8 +145,12 @@ let _accessibilityRoot = null;
 let _accessibilityList = null;
 /** @type {HTMLElement|null} */
 let _accessibilityStatus = null;
-let _accessibilitySignature = '';
-const _accessibleActivatorByKey = new Map();
+/** Accessible actions reuse one descriptor per stable overlay key. */
+const _accessibleDescriptorByKey = new Map();
+let _accessibleDomOrder = [];
+let _accessibleFrameOrder = [];
+let _accessibleCount = 0;
+let _accessibilityFrameStamp = 0;
 /** @type {HTMLCanvasElement|null} Host-owned detection blend-isolation surface. */
 let _detectionSurface = null;
 /** @type {CanvasRenderingContext2D|null} */
@@ -260,6 +264,8 @@ const _diagnostics = {
   projectionMs: 0,
   solveMs: 0,
   paintMs: 0,
+  accessibilityMs: 0,
+  frameMs: 0,
   solveRevision: 0,
   paintItemPoolSize: 0,
   paintRectPoolSize: 0,
@@ -1955,46 +1961,94 @@ function publishPaintRect(item) {
 /** Keep a stable, bounded accessible mirror of currently painted actions. */
 function syncAccessibleActions() {
   if (!_accessibilityList) return;
-  _accessibleActivatorByKey.clear();
-  const items = [];
+  const stamp = ++_accessibilityFrameStamp;
+  let count = 0;
+  let domChanged = false;
+
   for (let i = _hitRectCount - 1; i >= 0; i--) {
     const rect = _hitRects[i];
     const entry = rect.entry;
     if (!entry?.accessibilityLabel || typeof entry.activate !== 'function') continue;
-    if (_accessibleActivatorByKey.has(rect.key)) continue;
-    _accessibleActivatorByKey.set(rect.key, entry.activate);
-    items.push({
-      key: rect.key,
-      label: entry.accessibilityLabel,
-      selected: entry.selected === true,
-    });
+
+    let descriptor = _accessibleDescriptorByKey.get(rect.key);
+    if (!descriptor) {
+      descriptor = {
+        key: rect.key,
+        label: '',
+        selected: false,
+        activate: null,
+        stamp: 0,
+        domLabel: '',
+        domSelected: false,
+      };
+      _accessibleDescriptorByKey.set(rect.key, descriptor);
+    }
+    // Reverse hit order intentionally wins when the same stable action was
+    // painted more than once in a frame.
+    if (descriptor.stamp === stamp) continue;
+    descriptor.stamp = stamp;
+
+    const label = entry.accessibilityLabel;
+    const selected = entry.selected === true;
+    // Callbacks may change without changing any visible/ARIA state. Refresh the
+    // callback every frame even when the existing DOM can remain untouched.
+    descriptor.activate = entry.activate;
+    if (_accessibleDomOrder[count] !== descriptor
+      || descriptor.domLabel !== label
+      || descriptor.domSelected !== selected) {
+      domChanged = true;
+    }
+    descriptor.label = label;
+    descriptor.selected = selected;
+    _accessibleFrameOrder[count++] = descriptor;
   }
-  const signature = items
-    .map((item) => `${item.key}\u0000${item.label}\u0000${item.selected ? '1' : '0'}`)
-    .join('\u0001');
-  if (signature === _accessibilitySignature) return;
-  _accessibilitySignature = signature;
-  if (typeof _accessibilityList.replaceChildren === 'function') {
-    _accessibilityList.replaceChildren();
-  } else {
-    while (_accessibilityList.firstChild) _accessibilityList.removeChild(_accessibilityList.firstChild);
+
+  if (count !== _accessibleCount) domChanged = true;
+  if (domChanged) {
+    if (typeof _accessibilityList.replaceChildren === 'function') {
+      _accessibilityList.replaceChildren();
+    } else {
+      while (_accessibilityList.firstChild) _accessibilityList.removeChild(_accessibilityList.firstChild);
+    }
+    for (let i = 0; i < count; i++) {
+      const descriptor = _accessibleFrameOrder[i];
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = descriptor.label;
+      button.setAttribute('aria-label', descriptor.label);
+      button.setAttribute('aria-pressed', String(descriptor.selected));
+      button.dataset.overlayActionKey = descriptor.key;
+      button.addEventListener?.('click', () => {
+        const activate = descriptor.activate;
+        if (!activate) return;
+        const accepted = activate();
+        if (accepted !== false && _accessibilityStatus) {
+          _accessibilityStatus.textContent = `Focusing ${descriptor.label}`;
+        }
+      });
+      _accessibilityList.appendChild(button);
+      descriptor.domLabel = descriptor.label;
+      descriptor.domSelected = descriptor.selected;
+    }
   }
-  for (const item of items) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = item.label;
-    button.setAttribute('aria-label', item.label);
-    button.setAttribute('aria-pressed', String(item.selected));
-    button.dataset.overlayActionKey = item.key;
-    button.addEventListener?.('click', () => {
-      const activate = _accessibleActivatorByKey.get(item.key);
-      if (!activate) return;
-      const accepted = activate();
-      if (accepted !== false && _accessibilityStatus) {
-        _accessibilityStatus.textContent = `Focusing ${item.label}`;
-      }
-    });
-    _accessibilityList.appendChild(button);
+
+  const previousDomOrder = _accessibleDomOrder;
+  _accessibleDomOrder = _accessibleFrameOrder;
+  _accessibleDomOrder.length = count;
+  _accessibleFrameOrder = previousDomOrder;
+  _accessibleFrameOrder.length = 0;
+  _accessibleCount = count;
+
+  // Churning identities must not turn the stable descriptor cache into an
+  // unbounded history. Pruning is deliberately amortized so settled frames do
+  // not allocate an iterator or touch dead keys.
+  const cacheLimit = count * 4 + 64;
+  if (_accessibleDescriptorByKey.size > cacheLimit) {
+    for (const [key, descriptor] of _accessibleDescriptorByKey) {
+      if (descriptor.stamp === stamp) continue;
+      _accessibleDescriptorByKey.delete(key);
+      if (_accessibleDescriptorByKey.size <= cacheLimit) break;
+    }
   }
 }
 
@@ -2100,7 +2154,9 @@ function paintFrame(keyhole) {
   _diagnostics.paintItemPoolSize = _paintItemPool.length;
   _diagnostics.paintRectPoolSize = _paintRectPool.length;
   _diagnostics.paintMs = nowMs() - started;
+  const accessibilityStarted = nowMs();
   syncAccessibleActions();
+  _diagnostics.accessibilityMs = nowMs() - accessibilityStarted;
   _canvasNeedsClear = _paintRectCount > 0
     || activeCustomPaintLaneCount(PAINT_TARGET_SHARED) > 0;
 }
@@ -2137,6 +2193,8 @@ function resetFrameDiagnostics() {
   _diagnostics.projectionMs = 0;
   _diagnostics.solveMs = 0;
   _diagnostics.paintMs = 0;
+  _diagnostics.accessibilityMs = 0;
+  _diagnostics.frameMs = 0;
   for (let i = 0; i < _paintedSourceKeys.length; i++) {
     _paintedBySource[_paintedSourceKeys[i]] = 0;
   }
@@ -2144,19 +2202,26 @@ function resetFrameDiagnostics() {
 
 function drawWorldOverlay() {
   if (_destroyed || !_viewer || !_canvas || !_ctx) return;
-  const timestamp = nowMs();
+  const frameStarted = nowMs();
+  const timestamp = frameStarted;
   if (!overlayHasPaintWork(timestamp)) {
     resetFrameDiagnostics();
     _solveDirty = false;
     if (_canvasNeedsClear || _detectionSurfaceNeedsClear) clearCanvas();
-    if (_accessibilitySignature) {
+    if (_accessibleCount > 0) {
       _hitRectCount = 0;
+      const accessibilityStarted = nowMs();
       syncAccessibleActions();
+      _diagnostics.accessibilityMs = nowMs() - accessibilityStarted;
     }
+    _diagnostics.frameMs = nowMs() - frameStarted;
     return;
   }
   if (_resizeDirty) ensureCanvasSize();
-  if (_canvasWidth <= 0 || _canvasHeight <= 0) return;
+  if (_canvasWidth <= 0 || _canvasHeight <= 0) {
+    _diagnostics.frameMs = nowMs() - frameStarted;
+    return;
+  }
   _frameStamp++;
   refreshUiOccluders(timestamp, _occludersUpdatedAt === Number.NEGATIVE_INFINITY);
   resetFrameDiagnostics();
@@ -2179,6 +2244,7 @@ function drawWorldOverlay() {
   paintFrame(keyhole);
   const fadesRemaining = activeFadeCount(timestamp);
   if (fadesRemaining > 0) _viewer.scene.requestRender?.();
+  _diagnostics.frameMs = nowMs() - frameStarted;
 }
 
 function createDevFacade() {
@@ -2285,8 +2351,11 @@ export function destroyWorldOverlay() {
   _paintItemPool.length = 0;
   _paintRectPool.length = 0;
   _hitRects.length = 0;
-  _accessibleActivatorByKey.clear();
-  _accessibilitySignature = '';
+  _accessibleDescriptorByKey.clear();
+  _accessibleDomOrder.length = 0;
+  _accessibleFrameOrder.length = 0;
+  _accessibleCount = 0;
+  _accessibilityFrameStamp = 0;
   _paintRectByKey.clear();
   _paintCount = 0;
   _paintRectCount = 0;
@@ -2354,6 +2423,8 @@ export function destroyWorldOverlay() {
     projectionMs: 0,
     solveMs: 0,
     paintMs: 0,
+    accessibilityMs: 0,
+    frameMs: 0,
     solveRevision: 0,
     paintItemPoolSize: 0,
     paintRectPoolSize: 0,

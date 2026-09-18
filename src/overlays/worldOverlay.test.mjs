@@ -1015,6 +1015,7 @@ test('entry normalization validates required fields and source lifecycle is stab
 test('accessible actions announce only accepted focus and expose selected state', () => {
   const env = installMockEnvironment();
   let acceptedActivations = 0;
+  let replacementActivations = 0;
   let staleActivations = 0;
   initWorldOverlay(env.viewer);
   setOverlayEntries('accessible-actions', [selectedEntry('vessel:123', {
@@ -1035,6 +1036,22 @@ test('accessible actions announce only accepted focus and expose selected state'
   assert.equal(acceptedActivations, 1);
   assert.equal(status.textContent, 'Focusing Focus vessel TEST, MMSI 123');
 
+  const stableButton = list.children[0];
+  setOverlayEntries('accessible-actions', [selectedEntry('vessel:123', {
+    interactive: true,
+    accessibilityLabel: 'Focus vessel TEST, MMSI 123',
+    activate: () => {
+      replacementActivations++;
+      return true;
+    },
+  })]);
+  env.postRender.raise();
+  assert.equal(list.children[0], stableButton,
+    'unchanged accessible state preserves the DOM node');
+  list.children[0].click();
+  assert.equal(acceptedActivations, 1, 'the previous callback is no longer reachable');
+  assert.equal(replacementActivations, 1, 'callback replacement takes effect without rebuilding DOM');
+
   status.textContent = 'Focus unchanged';
   setOverlayEntries('accessible-actions', [selectedEntry('vessel:123', {
     selected: false,
@@ -1051,6 +1068,10 @@ test('accessible actions announce only accepted focus and expose selected state'
   list.children[0].click();
   assert.equal(staleActivations, 1);
   assert.equal(status.textContent, 'Focus unchanged');
+
+  clearOverlaySource('accessible-actions');
+  env.postRender.raise();
+  assert.equal(list.children.length, 0, 'removing the painted action removes its accessible mirror');
   env.cleanup();
 });
 
@@ -2135,7 +2156,7 @@ test('diagnostics facade preserves the complete binding shape', () => {
   const fields = [
     'sourceCount', 'entryCount', 'candidateCount', 'projectedCount', 'selectedCount',
     'fadingCount', 'paintedCount', 'hitRectCount', 'projectionMs', 'solveMs',
-    'paintMs', 'solveRevision', 'paintItemPoolSize', 'paintRectPoolSize',
+    'paintMs', 'accessibilityMs', 'frameMs', 'solveRevision', 'paintItemPoolSize', 'paintRectPoolSize',
     'candidateIndexSize', 'entriesBySource', 'paintedBySource',
   ];
   assert.deepEqual(Object.keys(diagnostics).sort(), fields.sort());

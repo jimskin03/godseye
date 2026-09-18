@@ -39,6 +39,27 @@ export function cockpitUiUpdateDue(nowMs, lastUpdateMs, intervalMs) {
   return nowMs - lastUpdateMs >= intervalMs;
 }
 
+/**
+ * Stable signature for the rendered Cockpit signal rail.
+ *
+ * Context snapshots are evaluated on a fixed cadence even when their visible
+ * rows have not changed. Keeping this pure lets the UI retain its existing
+ * delegated click listener and, more importantly, retain the row DOM/focus
+ * instead of rebuilding five nodes plus descendants on every context tick.
+ */
+export function cockpitSignalRenderSignature(items = []) {
+  if (!Array.isArray(items) || items.length === 0) return '';
+  return items.map((item) => [
+    item?.key ?? '',
+    item?.tone ?? '',
+    item?.title ?? '',
+    item?.detail ?? '',
+    item?.target?.layerId ?? '',
+    item?.target?.id ?? '',
+    Number.isFinite(item?.timestamp) ? item.timestamp : '',
+  ].join('\u001f')).join('\u001e');
+}
+
 /** Return whether the bounded rendered-surface acquisition window has elapsed. */
 export function cockpitSurfaceWaitExpired(nowMs, startedMs, timeoutMs = 5000) {
   if (![nowMs, startedMs, timeoutMs].every(Number.isFinite) || timeoutMs < 0) return true;

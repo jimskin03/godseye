@@ -397,6 +397,7 @@ const aisLiveVesselsLayer = {
     }
     state.loading = false;
     state.loadingLabel = '';
+    state.detectionObjects = new WeakMap();
   },
 
   update(viewer) {
@@ -622,15 +623,47 @@ const aisLiveVesselsLayer = {
       if (record.billboard && !record.billboard.show) continue;
       const position = record.billboard?.position || record.position;
       if (!position) continue;
-      result.push({
-        position,
-        sourceId: record.mmsi,
-        id: record.name || record.mmsi || 'VESSEL',
-        type: 'SEA',
-        skipLabel: record === selected,
-        klass: record.type ? String(record.type).toUpperCase().slice(0, 14) : undefined,
-        metric: formatKnots(record.speed), // record.speed is knots
-      });
+      let cached = state.detectionObjects.get(record);
+      if (!cached) {
+        cached = {
+          value: {
+            position,
+            sourceId: record.mmsi,
+            id: record.name || record.mmsi || 'VESSEL',
+            type: 'SEA',
+            skipLabel: record === selected,
+            klass: record.type ? String(record.type).toUpperCase().slice(0, 14) : undefined,
+            metric: formatKnots(record.speed), // record.speed is knots
+          },
+          name: record.name,
+          mmsi: record.mmsi,
+          vesselType: record.type,
+          speed: record.speed,
+        };
+        state.detectionObjects.set(record, cached);
+      } else {
+        const value = cached.value;
+        value.position = position;
+        value.skipLabel = record === selected;
+        const mmsiChanged = cached.mmsi !== record.mmsi;
+        if (mmsiChanged) {
+          cached.mmsi = record.mmsi;
+          value.sourceId = record.mmsi;
+        }
+        if (cached.name !== record.name || mmsiChanged) {
+          cached.name = record.name;
+          value.id = record.name || record.mmsi || 'VESSEL';
+        }
+        if (cached.vesselType !== record.type) {
+          cached.vesselType = record.type;
+          value.klass = record.type ? String(record.type).toUpperCase().slice(0, 14) : undefined;
+        }
+        if (!Object.is(cached.speed, record.speed)) {
+          cached.speed = record.speed;
+          value.metric = formatKnots(record.speed);
+        }
+      }
+      result.push(cached.value);
       if (result.length >= maxCount) break;
     }
     return result;
@@ -725,6 +758,8 @@ const state = {
   trailMmsi: null,
   /** @type {number} Monotonic token — invalidates in-flight backfill responses */
   trailBackfillToken: 0,
+  /** Weakly keyed detection-object cache; reset on disable/destroy/test reset. */
+  detectionObjects: new WeakMap(),
 };
 
 /** Replace live AIS rows through the production reconciliation path (DEV only). */
@@ -1972,6 +2007,7 @@ function resetState() {
   state.trailPositions = [];
   state.trailMmsi = null;
   state.trailBackfillToken = 0;
+  state.detectionObjects = new WeakMap();
 }
 
 /**
