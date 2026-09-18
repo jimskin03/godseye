@@ -14,6 +14,9 @@ import flightsLayer, {
   _setTrackedFlightRefreshStateForTest,
   _floorGroundedDisplayPositionForTest,
   _clearDisplayFloorStateForTest,
+  _destroyFlightEnrichmentForTest,
+  _enqueueFlightEnrichmentForTest,
+  _flightEnrichmentStateForTest,
   mapAnalystRecord,
 } from './flights.js';
 import { setMilitaryLayerActive } from './militaryRegistry.js';
@@ -26,6 +29,128 @@ import {
   destroyTrackedReadout,
   initTrackedReadout,
 } from './trackedReadout.js';
+
+async function flushEnrichmentMicrotasks() {
+  // Cross a task boundary so fetch -> response.json() -> data -> finally()
+  // has fully settled before scheduler-state assertions run.
+  await new Promise((resolve) => setImmediate(resolve));
+  await Promise.resolve();
+}
+
+function enrichmentResponse(data) {
+  return { ok: true, json: async () => data };
+}
+
+test('adsbdb enrichment ignores a stale completion after destroy and permits the same key in a new lifecycle', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalDateNow = Date.now;
+  const pending = [];
+  const applied = [];
+  let nowMs = 10_000;
+
+  Date.now = () => (nowMs += 250);
+  globalThis.fetch = (url, options = {}) => new Promise((resolve, reject) => {
+    pending.push({ url, signal: options.signal, resolve, reject });
+  });
+
+  try {
+    _destroyFlightEnrichmentForTest();
+    _enqueueFlightEnrichmentForTest('same-key', (data) => applied.push(['old', data.value]));
+    assert.equal(pending.length, 1);
+    const oldSignal = pending[0].signal;
+
+    _destroyFlightEnrichmentForTest();
+    assert.equal(oldSignal.aborted, true, 'full destroy must abort the prior lifecycle controller');
+
+    _enqueueFlightEnrichmentForTest('same-key', (data) => applied.push(['new', data.value]));
+    assert.equal(pending.length, 2, 'destroy clears per-session seen keys for a fresh lifecycle');
+    assert.notEqual(pending[1].signal, oldSignal);
+    assert.equal(pending[1].signal.aborted, false);
+
+    pending[0].resolve(enrichmentResponse({ found: true, value: 'stale' }));
+    await flushEnrichmentMicrotasks();
+    assert.deepEqual(applied, [], 'old-generation completion must be inert');
+
+    pending[1].resolve(enrichmentResponse({ found: true, value: 'fresh' }));
+    await flushEnrichmentMicrotasks();
+    assert.deepEqual(applied, [['new', 'fresh']]);
+    assert.equal(_flightEnrichmentStateForTest().active, 0);
+  } finally {
+    _destroyFlightEnrichmentForTest();
+    globalThis.fetch = originalFetch;
+    Date.now = originalDateNow;
+  }
+});
+
+test('adsbdb enrichment remains fail-silent and repeated teardown is inert', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalDateNow = Date.now;
+  let nowMs = 20_000;
+  let callbackCount = 0;
+
+  Date.now = () => (nowMs += 250);
+  globalThis.fetch = async () => { throw new Error('synthetic adsbdb failure'); };
+
+  try {
+    _destroyFlightEnrichmentForTest();
+    _enqueueFlightEnrichmentForTest('reject-key', () => { callbackCount += 1; });
+    await flushEnrichmentMicrotasks();
+    assert.equal(callbackCount, 0);
+    assert.equal(_flightEnrichmentStateForTest().active, 0);
+
+    _destroyFlightEnrichmentForTest();
+    _destroyFlightEnrichmentForTest();
+    assert.deepEqual(
+      {
+        queued: _flightEnrichmentStateForTest().queued,
+        seen: _flightEnrichmentStateForTest().seen,
+        controllerPresent: _flightEnrichmentStateForTest().controllerPresent,
+      },
+      { queued: 0, seen: 0, controllerPresent: false },
+    );
+  } finally {
+    _destroyFlightEnrichmentForTest();
+    globalThis.fetch = originalFetch;
+    Date.now = originalDateNow;
+  }
+});
+
+test('adsbdb enrichment never exceeds the four-request in-flight cap', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalDateNow = Date.now;
+  const pending = [];
+  let nowMs = 30_000;
+
+  Date.now = () => (nowMs += 250);
+  globalThis.fetch = (url, options = {}) => new Promise((resolve) => {
+    pending.push({ url, signal: options.signal, resolve });
+  });
+
+  try {
+    _destroyFlightEnrichmentForTest();
+    for (let i = 0; i < 5; i += 1) {
+      _enqueueFlightEnrichmentForTest(`cap-${i}`, () => {});
+    }
+
+    assert.equal(pending.length, 4);
+    assert.equal(_flightEnrichmentStateForTest().active, 4);
+    assert.equal(_flightEnrichmentStateForTest().queued, 1);
+
+    pending[0].resolve(enrichmentResponse({ found: false }));
+    await flushEnrichmentMicrotasks();
+    assert.equal(pending.length, 5, 'one completion admits exactly one queued request');
+    assert.equal(_flightEnrichmentStateForTest().active, 4);
+    assert.equal(_flightEnrichmentStateForTest().queued, 0);
+
+    for (const job of pending.slice(1)) job.resolve(enrichmentResponse({ found: false }));
+    await flushEnrichmentMicrotasks();
+    assert.equal(_flightEnrichmentStateForTest().active, 0);
+  } finally {
+    _destroyFlightEnrichmentForTest();
+    globalThis.fetch = originalFetch;
+    Date.now = originalDateNow;
+  }
+});
 
 test('share-Follow absence requires an accepted OpenSky snapshot', async () => {
   _setFlightTrackingRefreshOutcomeForTest({ status: 'source-unavailable' });

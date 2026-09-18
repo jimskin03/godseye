@@ -783,8 +783,27 @@ let _enrichLastDispatchMs = 0;
 let _enrichDripTimer = null;
 const _enrichQueue = [];
 const _enrichSeen = new Set();
+/** Full-layer lifecycle guard. Disable/re-enable deliberately keeps this alive. */
+let _enrichGeneration = 0;
+let _enrichAbortController = new AbortController();
+
+function _ensureEnrichLifecycle() {
+  if (!_enrichAbortController || _enrichAbortController.signal.aborted) {
+    _enrichAbortController = new AbortController();
+  }
+}
+
+function _destroyEnrichLifecycle() {
+  _enrichGeneration += 1;
+  try { _enrichAbortController?.abort(); } catch { /* already aborted */ }
+  _enrichAbortController = null;
+  _enrichQueue.length = 0;
+  _enrichSeen.clear();
+  if (_enrichDripTimer) { clearTimeout(_enrichDripTimer); _enrichDripTimer = null; }
+}
 
 function _enqueueEnrich(key, url, onData, priority = false) {
+  _ensureEnrichLifecycle();
   if (_enrichSeen.has(key)) return;
   _enrichSeen.add(key);
   const job = { url, onData };
@@ -808,10 +827,16 @@ function _drainEnrich() {
     }
     _enrichLastDispatchMs = Date.now();
     const job = _enrichQueue.shift();
+    _ensureEnrichLifecycle();
+    const generation = _enrichGeneration;
+    const controller = _enrichAbortController;
     _enrichActive += 1;
-    fetch(job.url)
+    fetch(job.url, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { if (data && data.found) job.onData(data); })
+      .then((data) => {
+        if (generation !== _enrichGeneration || controller.signal.aborted) return;
+        if (data && data.found) job.onData(data);
+      })
       .catch(() => { /* enrichment never surfaces errors */ })
       .finally(() => { _enrichActive -= 1; _drainEnrich(); });
   }
@@ -3498,6 +3523,28 @@ export async function _ensureFleetModelForTest(icao24) {
   return _models.get(icao24) || null;
 }
 
+/** Test seam for the bounded adsbdb scheduler. Uses the production queue/drain path. */
+export function _enqueueFlightEnrichmentForTest(key, onData, priority = false) {
+  _enqueueEnrich(String(key), `/api/adsbdb/test/${encodeURIComponent(String(key))}`, onData, priority);
+}
+
+/** Test seam for full-layer enrichment teardown (the same helper production destroy uses). */
+export function _destroyFlightEnrichmentForTest() {
+  _destroyEnrichLifecycle();
+}
+
+/** Test-only scheduler snapshot; intentionally exposes counts, never mutable containers. */
+export function _flightEnrichmentStateForTest() {
+  return {
+    active: _enrichActive,
+    queued: _enrichQueue.length,
+    seen: _enrichSeen.size,
+    generation: _enrichGeneration,
+    controllerPresent: !!_enrichAbortController,
+    aborted: !!_enrichAbortController?.signal?.aborted,
+  };
+}
+
 /** Plausibility check anchored to the plane's billboard position (coarse is
  *  fine here — this gates a LABEL, and it must not touch the tracked frame
  *  cache). Missing data → true (never hide what we can't judge). */
@@ -4697,9 +4744,8 @@ const flightsLayer = {
     _displayCourse.clear();
     _groundSnap.clear();
     _displayFloorState.clear();
-    _enrichQueue.length = 0;
-    _enrichSeen.clear();
-    if (_enrichDripTimer) { clearTimeout(_enrichDripTimer); _enrichDripTimer = null; }
+    _destroyEnrichLifecycle();
+    _geoidNCache.clear();
     _missingPolls.clear();
     _focusEvidenceIds.clear();
     _count = 0;

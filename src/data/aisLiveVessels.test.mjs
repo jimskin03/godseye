@@ -36,6 +36,100 @@ import { registerPickOwner, unregisterPickOwner } from './pickRegistry.js';
 import { applyVesselOverlayPolicy } from './vesselLabels.js';
 import { layerFeedState } from './manager.js';
 
+test('detection observations reuse record objects while keeping public fields current', () => {
+  const firstPosition = { x: 1, y: 2, z: 3 };
+  const secondPosition = { x: 4, y: 5, z: 6 };
+  const record = {
+    mmsi: '123456789',
+    name: 'TEST VESSEL',
+    type: 'cargo',
+    speed: 12.3,
+    position: firstPosition,
+    billboard: { show: true, position: firstPosition },
+  };
+  const collection = { show: true, remove() {} };
+  _setVesselStateForTest({ records: [record], billboardCollection: collection });
+
+  try {
+    const first = aisLiveVesselsLayer.getDetectableObjects({ maxCount: 1, seed: 0 });
+    const second = aisLiveVesselsLayer.getDetectableObjects({ maxCount: 1, seed: 0 });
+    assert.equal(first.length, 1);
+    assert.equal(second.length, 1);
+    assert.notEqual(first, second, 'public result arrays stay caller-owned');
+    assert.equal(first[0], second[0], 'stable vessel records reuse the detection observation');
+    assert.deepEqual(first[0], {
+      position: firstPosition,
+      sourceId: '123456789',
+      id: 'TEST VESSEL',
+      type: 'SEA',
+      skipLabel: false,
+      klass: 'CARGO',
+      metric: '12 kn',
+    });
+
+    record.billboard.position = secondPosition;
+    record.name = 'RENAMED VESSEL';
+    record.type = 'tanker';
+    record.speed = 7.6;
+    // Selection identity is record-based, so switch state while retaining the
+    // same record object through the existing test seam.
+    _setVesselStateForTest({
+      records: [record],
+      billboardCollection: collection,
+      selectedRecord: record,
+    });
+    const refreshed = aisLiveVesselsLayer.getDetectableObjects({ maxCount: 1, seed: 0 });
+    assert.notEqual(refreshed[0], second[0], 'state reset clears the lifecycle cache');
+    assert.deepEqual(refreshed[0], {
+      position: secondPosition,
+      sourceId: '123456789',
+      id: 'RENAMED VESSEL',
+      type: 'SEA',
+      skipLabel: true,
+      klass: 'TANKER',
+      metric: '8 kn',
+    });
+  } finally {
+    _setVesselStateForTest({ enabled: false });
+  }
+});
+
+test('detection observations preserve deterministic stride order and refresh mutable fields in place', () => {
+  const collection = { show: true, remove() {} };
+  const records = Array.from({ length: 6 }, (_, index) => {
+    const position = { x: index, y: 0, z: 0 };
+    return {
+      mmsi: String(1000 + index),
+      name: `VESSEL-${index}`,
+      type: index === 2 ? 'cargo' : '',
+      speed: index === 2 ? 5.2 : null,
+      position,
+      billboard: { show: true, position },
+    };
+  });
+  _setVesselStateForTest({ records, billboardCollection: collection });
+
+  try {
+    const first = aisLiveVesselsLayer.getDetectableObjects({ maxCount: 2, seed: 0 });
+    assert.deepEqual(first.map((item) => item.sourceId), ['1000', '1003']);
+    const cachedFirst = first[0];
+
+    records[0].billboard.position = { x: 99, y: 1, z: 1 };
+    records[0].name = 'UPDATED';
+    records[0].type = 'pilot';
+    records[0].speed = 18.8;
+    const second = aisLiveVesselsLayer.getDetectableObjects({ maxCount: 2, seed: 0 });
+    assert.equal(second[0], cachedFirst, 'mutable display fields update without replacing the object');
+    assert.equal(second[0].position, records[0].billboard.position);
+    assert.equal(second[0].id, 'UPDATED');
+    assert.equal(second[0].klass, 'PILOT');
+    assert.equal(second[0].metric, '19 kn');
+    assert.deepEqual(second.map((item) => item.sourceId), ['1000', '1003']);
+  } finally {
+    _setVesselStateForTest({ enabled: false });
+  }
+});
+
 test('open feed with vessels is healthy (null)', () => {
   assert.equal(deriveAisFeedError({ status: 'open', lastMessageAt: 1, error: null }, 42), null);
 });

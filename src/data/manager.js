@@ -119,6 +119,7 @@ export class DataLayerManager {
   constructor(viewer, { allowQaRegistration = false } = {}) {
     this.viewer = viewer;
     this.layers = new Map(); // id → { module, enabled, initialized, intervalId, lifecycleState, lifecycleUncertain }
+    this._toggleRows = new Map();
     this._listeners = new Set();
     this._visibilityRequestListeners = new Set();
     this._beforeDestroyListeners = new Set();
@@ -532,7 +533,7 @@ export class DataLayerManager {
     } else if (updateInterval === 0) {
       entry.intervalId = setInterval(() => {
         if (!entry.enabled) return;
-        this._refreshTogglePanel();
+        this._refreshLayerRow(layerId);
       }, entry.module.statsRefreshInterval || 1000);
     }
   }
@@ -1917,19 +1918,23 @@ export class DataLayerManager {
   getAll() {
     const result = [];
     for (const [id, entry] of this.layers) {
-      result.push({
-        id,
-        name: entry.module.name,
-        icon: entry.module.icon,
-        source: entry.module.source,
-        showInTogglePanel: entry.module.showInTogglePanel !== false,
-        enabled: entry.enabled,
-        lifecycleState: entry.lifecycleState,
-        lifecycleUncertain: entry.lifecycleUncertain,
-        stats: this._normalizedStats(entry),
-      });
+      result.push(this._layerView(id, entry));
     }
     return result;
+  }
+
+  _layerView(id, entry) {
+    return {
+      id,
+      name: entry.module.name,
+      icon: entry.module.icon,
+      source: entry.module.source,
+      showInTogglePanel: entry.module.showInTogglePanel !== false,
+      enabled: entry.enabled,
+      lifecycleState: entry.lifecycleState,
+      lifecycleUncertain: entry.lifecycleUncertain,
+      stats: this._normalizedStats(entry),
+    };
   }
 
   subscribe(callback) {
@@ -2021,6 +2026,7 @@ export class DataLayerManager {
   _renderToggles() {
     if (!this._toggleContainer) return;
     this._toggleContainer.innerHTML = '';
+    this._toggleRows.clear();
 
     for (const layer of this.getAll()) {
       if (!layer.showInTogglePanel) continue;
@@ -2072,12 +2078,13 @@ export class DataLayerManager {
       // listener is delegated and attached once here, so it survives
       // _refreshTogglePanel — which only rewrites the container's contents.
       const rowModule = this.layers.get(layer.id)?.module;
+      let controls = null;
       if (typeof rowModule?.getRowControls === 'function') {
         // A layer whose controls settle asynchronously (a chunked catalog load
         // that can also fail) pushes a re-render through this; nothing else
         // would repaint the row before its next scheduled refresh.
-        rowModule.setRowControlsListener?.(() => this._refreshTogglePanel());
-        const controls = document.createElement('div');
+        rowModule.setRowControlsListener?.(() => this._refreshLayerRow(layer.id));
+        controls = document.createElement('div');
         controls.className = 'data-toggle-controls';
         controls.addEventListener('click', (event) => {
           const button = event.target?.closest?.('.data-toggle-chip');
@@ -2093,6 +2100,13 @@ export class DataLayerManager {
       }
 
       this._toggleContainer.appendChild(row);
+      this._toggleRows.set(layer.id, {
+        row,
+        toggle,
+        count,
+        meta: bottomRow,
+        controls,
+      });
     }
   }
 
@@ -2132,15 +2146,14 @@ export class DataLayerManager {
     const controls = layer.enabled ? this._rowControlsFor(layer.id) : null;
     const chips = controls?.chips || [];
     const legend = controls?.legend || [];
-    container.hidden = chips.length === 0 && legend.length === 0;
-
-    for (const node of [...container.children]) {
-      if (String(node.className).split(/\s+/).includes('data-toggle-legend-item')) node.remove();
-    }
+    const shouldHide = chips.length === 0 && legend.length === 0;
+    if (container.hidden !== shouldHide) container.hidden = shouldHide;
 
     const stale = new Map();
+    const staleLegend = new Map();
     for (const node of [...container.children]) {
       if (node.dataset?.chipId) stale.set(node.dataset.chipId, node);
+      if (node.dataset?.legendKey) staleLegend.set(node.dataset.legendKey, node);
     }
 
     for (const chip of chips) {
@@ -2153,27 +2166,72 @@ export class DataLayerManager {
         container.appendChild(button);
       }
       const state = chip.state || (chip.active ? 'active' : 'idle');
-      button.className = `data-toggle-chip chip-${state}${chip.active ? ' active' : ''}`;
+      const className = `data-toggle-chip chip-${state}${chip.active ? ' active' : ''}`;
+      if (button.className !== className) button.className = className;
       if (button.textContent !== chip.label) button.textContent = chip.label;
-      button.title = chip.title || '';
-      button.disabled = Boolean(chip.disabled);
-      button.setAttribute('aria-pressed', chip.active ? 'true' : 'false');
-      button.setAttribute('aria-busy', chip.busy ? 'true' : 'false');
+      const title = chip.title || '';
+      if (button.title !== title) button.title = title;
+      const disabled = Boolean(chip.disabled);
+      if (button.disabled !== disabled) button.disabled = disabled;
+      this._setAttributeIfChanged(button, 'aria-pressed', chip.active ? 'true' : 'false');
+      this._setAttributeIfChanged(button, 'aria-busy', chip.busy ? 'true' : 'false');
     }
     for (const node of stale.values()) node.remove();
 
     for (const item of legend) {
-      const entry = document.createElement('span');
-      entry.className = 'data-toggle-legend-item';
-      if (item.blurb) entry.title = item.blurb;
-      const swatch = document.createElement('span');
-      swatch.className = 'data-toggle-legend-swatch';
-      swatch.style.background = item.color;
-      const text = document.createElement('span');
-      text.textContent = `${item.label} ${this._formatCount(item.count)}`;
-      entry.append(swatch, text);
-      container.appendChild(entry);
+      const key = String(item.id || item.klass || `${item.label}:${item.color}`);
+      let entry = staleLegend.get(key);
+      staleLegend.delete(key);
+      let swatch;
+      let text;
+      if (!entry) {
+        entry = document.createElement('span');
+        entry.className = 'data-toggle-legend-item';
+        entry.dataset.legendKey = key;
+        swatch = document.createElement('span');
+        swatch.className = 'data-toggle-legend-swatch';
+        text = document.createElement('span');
+        text.className = 'data-toggle-legend-label';
+        entry.append(swatch, text);
+        container.appendChild(entry);
+      } else {
+        swatch = entry.querySelector?.('.data-toggle-legend-swatch') || entry.children?.[0];
+        text = entry.querySelector?.('.data-toggle-legend-label') || entry.children?.[1];
+      }
+      const title = item.blurb || '';
+      if (entry.title !== title) entry.title = title;
+      if (swatch?.style && swatch.style.background !== item.color) swatch.style.background = item.color;
+      const label = `${item.label} ${this._formatCount(item.count)}`;
+      if (text && text.textContent !== label) text.textContent = label;
     }
+    for (const node of staleLegend.values()) node.remove();
+  }
+
+  _setAttributeIfChanged(node, name, value) {
+    if (!node) return;
+    const current = typeof node.getAttribute === 'function'
+      ? node.getAttribute(name)
+      : node.attributes?.[name];
+    if (String(current ?? '') !== String(value)) node.setAttribute(name, value);
+  }
+
+  _refreshLayerRow(layerId) {
+    if (!this._toggleContainer) return;
+    if (typeof document !== 'undefined' && document.hidden) {
+      this._panelRefreshPendingOnVisible = true;
+      return;
+    }
+    const entry = this.layers.get(layerId);
+    const refs = this._toggleRows.get(layerId);
+    if (!entry || !refs || entry.module.showInTogglePanel === false) return;
+    const layer = this._layerView(layerId, entry);
+
+    this._syncToggleButton(refs.toggle, layer);
+    const countText = layer.stats.count ? this._formatCount(layer.stats.count) : '—';
+    if (refs.count && refs.count.textContent !== countText) refs.count.textContent = countText;
+    const metaText = this._buildMetaText(layer);
+    if (refs.meta && refs.meta.textContent !== metaText) refs.meta.textContent = metaText;
+    this._syncRowControls(refs.controls, layer);
   }
 
   _refreshTogglePanel() {
@@ -2184,27 +2242,7 @@ export class DataLayerManager {
       this._panelRefreshPendingOnVisible = true;
       return;
     }
-    for (const layer of this.getAll()) {
-      const row = this._toggleContainer.querySelector(`[data-layer-id="${layer.id}"]`);
-      if (!row) continue;
-
-      const btn = row.querySelector('.data-toggle-btn');
-      if (btn) {
-        this._syncToggleButton(btn, layer);
-      }
-
-      const count = row.querySelector('.data-count');
-      if (count) {
-        count.textContent = layer.stats.count ? this._formatCount(layer.stats.count) : '—';
-      }
-
-      const meta = row.querySelector('.data-toggle-meta');
-      if (meta) {
-        meta.textContent = this._buildMetaText(layer);
-      }
-
-      this._syncRowControls(row.querySelector('.data-toggle-controls'), layer);
-    }
+    for (const layerId of this._toggleRows.keys()) this._refreshLayerRow(layerId);
   }
 
   _buildMetaText(layer) {
@@ -2263,14 +2301,16 @@ export class DataLayerManager {
     for (const state of Object.keys(FEED_STATE_LABELS)) {
       button.classList.toggle(`feed-${state}`, layer.enabled && !uncertain && feedState === state);
     }
-    button.dataset.feedState = transitioning
+    const dataFeedState = transitioning
       ? layer.lifecycleState
       : (uncertain ? 'uncertain' : feedState);
-    button.disabled = transitioning;
-    button.textContent = transitioning
+    if (button.dataset.feedState !== dataFeedState) button.dataset.feedState = dataFeedState;
+    if (button.disabled !== transitioning) button.disabled = transitioning;
+    const textContent = transitioning
       ? layer.lifecycleState.toUpperCase()
       : (uncertain ? 'UNCERTAIN' : (layer.enabled ? FEED_STATE_LABELS[feedState] : 'OFF'));
-    button.setAttribute('aria-label', `${layer.name}: ${button.textContent}`);
+    if (button.textContent !== textContent) button.textContent = textContent;
+    this._setAttributeIfChanged(button, 'aria-label', `${layer.name}: ${textContent}`);
   }
 
   _formatCount(n) {

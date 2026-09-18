@@ -3295,6 +3295,7 @@ const militaryFlightsLayer = {
     _positionHistory.clear();
     _displayCourse.clear();
     _groundSnap.clear();
+    _geoidNCache.clear();
     _missingPolls.clear();
     _count = 0;
     _lastUpdate = null;

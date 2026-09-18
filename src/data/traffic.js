@@ -152,6 +152,8 @@ let _viewer = null;
 let _pointCollection = null;
 /** @type {Array<{point:Cesium.PointPrimitive, waypoints:Cesium.Cartesian3[], segmentDist:number[], numSegments:number, segIdx:number, t:number, mps:number, direction:number, stoppedUntil:number}>} Active animated dots */
 let _dots = [];
+/** Weakly keyed detection-record cache; reset whenever the dot lifecycle resets. */
+let _detectionObjects = new WeakMap();
 /** @type {Array<{coords:number[][], type:string, waypoints:Cesium.Cartesian3[], segmentDist:number[]}>} Parsed roads with pre-computed Cartesian3 waypoints */
 let _roads = [];
 /** @type {boolean} Whether the layer is currently enabled */
@@ -2148,11 +2150,73 @@ async function loadRoadsForBounds(bounds, altitude, trace = null) {
 
 // ─── Cleanup ───────────────────────────────────────────────
 
+function collectTrafficDetectionObjects(dots, options, liveMode, cache) {
+  if (!dots.length) return [];
+  const maxCount = Number.isFinite(options.maxCount)
+    ? Math.max(1, Math.floor(options.maxCount))
+    : dots.length;
+  const seed = Number.isFinite(options.seed) ? Math.floor(options.seed) : 0;
+  // Preserve the shipped deterministic stride exactly; only the observation
+  // records themselves are reused between paint callbacks.
+  const stride = Math.max(1, Math.ceil(dots.length / maxCount));
+  const start = seed % stride;
+  const result = [];
+
+  for (let i = start; i < dots.length; i += stride) {
+    const dot = dots[i];
+    const pos = dot?.point?.position;
+    if (!pos) continue;
+
+    let cached = cache.get(dot);
+    if (!cached) {
+      const value = {
+        position: pos,
+        id: `VEH-${String(i).padStart(4, '0')}`,
+        type: 'VEH',
+      };
+      if (liveMode) {
+        const tier = trafficBucketTier(dot.bucket || 'sim');
+        if (tier) value.tier = tier;
+      }
+      cached = { value, index: i, liveMode, bucket: dot.bucket };
+      cache.set(dot, cached);
+    } else {
+      const value = cached.value;
+      value.position = pos;
+      if (cached.index !== i) {
+        cached.index = i;
+        value.id = `VEH-${String(i).padStart(4, '0')}`;
+      }
+      if (cached.liveMode !== liveMode || cached.bucket !== dot.bucket) {
+        cached.liveMode = liveMode;
+        cached.bucket = dot.bucket;
+        const tier = liveMode ? trafficBucketTier(dot.bucket || 'sim') : null;
+        if (tier) value.tier = tier;
+        else delete value.tier;
+      }
+    }
+
+    result.push(cached.value);
+    if (result.length >= maxCount) break;
+  }
+  return result;
+}
+
+/** Test seam for the allocation-free detection selector without mutating layer state. */
+export function _collectTrafficDetectionObjectsForTest(
+  dots,
+  options = {},
+  { liveMode = false, cache = new WeakMap() } = {},
+) {
+  return collectTrafficDetectionObjects(dots, options, liveMode, cache);
+}
+
 /** Remove all point primitives and reset dot/road arrays and counters. */
 function clearDots() {
   if (_pointCollection) _pointCollection.removeAll();
   removeHeatLines();
   _dots = [];
+  _detectionObjects = new WeakMap();
   _roads = [];
   _count = 0;
   _bucketCounts = { free: 0, slow: 0, jam: 0, sim: 0 };
@@ -2193,6 +2257,7 @@ const trafficLayer = {
     viewer.scene.primitives.add(_pointCollection);
     _pointCollection.show = false;
     _dots = [];
+    _detectionObjects = new WeakMap();
     _roads = [];
     _count = 0;
     _lastUpdate = null;
@@ -2395,37 +2460,8 @@ const trafficLayer = {
    * @returns {Array<{position:Cesium.Cartesian3, id:string, type:string}>}
    */
   getDetectableObjects(options = {}) {
-    if (!_enabled || _dots.length === 0) return [];
-    const maxCount = Number.isFinite(options.maxCount)
-      ? Math.max(1, Math.floor(options.maxCount))
-      : _dots.length;
-    const seed = Number.isFinite(options.seed) ? Math.floor(options.seed) : 0;
-    // Stride-based sampling: step through dots evenly to get ~maxCount samples
-    const stride = Math.max(1, Math.ceil(_dots.length / maxCount));
-    const start = seed % stride;
-
-    const result = [];
-    for (let i = start; i < _dots.length; i += stride) {
-      const pos = _dots[i].point.position;
-      if (!pos) continue;
-      const entry = {
-        position: pos,
-        id: `VEH-${String(i).padStart(4, '0')}`,
-        type: 'VEH',
-      };
-      // Live mode: the detection bracket carries the congestion signal —
-      // its canvas sits ABOVE the post-FX chain, so tier colors survive
-      // every preset (follow-up round 2: "bounding boxes do the heavy
-      // lifting"). Keyless mode sets no tier: contacts keep the stock
-      // 'vehicle' bracket and the keyless experience stays untouched.
-      if (_liveMode) {
-        const tier = trafficBucketTier(_dots[i].bucket || 'sim');
-        if (tier) entry.tier = tier;
-      }
-      result.push(entry);
-      if (result.length >= maxCount) break;
-    }
-    return result;
+    if (!_enabled) return [];
+    return collectTrafficDetectionObjects(_dots, options, _liveMode, _detectionObjects);
   },
 
   /**

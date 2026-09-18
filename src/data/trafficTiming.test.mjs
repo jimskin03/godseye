@@ -124,6 +124,7 @@ test('traffic timing stays inert when the DEV flag is off under bare Node', () =
 
 test('traffic timing pairs real ordering to the scheduling change and guards re-arms', async () => {
   const { createServer } = await import('vite');
+  const originalNodeEnv = process.env.NODE_ENV;
   const originalWindow = globalThis.window;
   const originalDocument = globalThis.document;
   const originalFetch = globalThis.fetch;
@@ -153,6 +154,10 @@ test('traffic timing pairs real ordering to the scheduling change and guards re-
   };
 
   try {
+    // This test exercises DEV-only timing hooks. Do not inherit a production
+    // NODE_ENV from the shell/CI host, which makes Vite correctly fold DEV to
+    // false and turns the rest of this test into a contradiction.
+    process.env.NODE_ENV = 'development';
     globalThis.window = {
       location: { search: '?trafficDebug=1' },
       addEventListener() {},
@@ -327,6 +332,8 @@ test('traffic timing pairs real ordering to the scheduling change and guards re-
     globalThis.clearInterval = originalClearInterval;
     console.log = originalLog;
     console.warn = originalWarn;
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
     performance.clearMarks();
     performance.clearMeasures();
   }

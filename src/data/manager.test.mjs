@@ -2970,8 +2970,12 @@ test('keyboard focus on a chip survives the refresh its own click triggers', asy
     mgr._refreshTogglePanel();
     assert.equal(globalThis.document.activeElement, chip,
       'repeated refreshes never steal focus');
-    // Legend entries hold no focus, so they may be replaced — never duplicated.
-    assert.equal(collectByClass(controls, 'data-toggle-legend-item').length, 2);
+    const legendBefore = collectByClass(controls, 'data-toggle-legend-item');
+    mgr._refreshTogglePanel();
+    const legendAfter = collectByClass(controls, 'data-toggle-legend-item');
+    assert.equal(legendAfter.length, 2);
+    assert.equal(legendAfter[0], legendBefore[0], 'stable legend keys preserve the first node');
+    assert.equal(legendAfter[1], legendBefore[1], 'stable legend keys preserve the second node');
 
     // ...and a chip that genuinely goes away still releases focus.
     layer.module.getRowControls = () => ({ chips: [], legend: [] });
@@ -2979,6 +2983,83 @@ test('keyboard focus on a chip survives the refresh its own click triggers', asy
     assert.equal(globalThis.document.activeElement, null);
   } finally {
     await mgr.destroyAll();
+    if (originalDocument === undefined) delete globalThis.document;
+    else globalThis.document = originalDocument;
+  }
+});
+
+test('stats-only timer refreshes only its own row and hidden-tab catch-up stays global', async () => {
+  const originalDocument = globalThis.document;
+  const originalSetInterval = globalThis.setInterval;
+  const originalClearInterval = globalThis.clearInterval;
+  const timers = new Map();
+  let nextTimerId = 1;
+  globalThis.document = { createElement: makeControlElement, hidden: false };
+  globalThis.setInterval = (callback, delay) => {
+    const id = nextTimerId++;
+    timers.set(delay, { id, callback });
+    return id;
+  };
+  globalThis.clearInterval = () => {};
+
+  const mgr = new DataLayerManager({});
+  let alphaStats = 0;
+  let betaStats = 0;
+  const makeLayer = (id, statsRefreshInterval, readStats) => ({
+    id,
+    name: id,
+    icon: '',
+    source: 'fixture',
+    updateInterval: 0,
+    statsRefreshInterval,
+    async init() {},
+    enable() {},
+    disable() {},
+    async update() {},
+    getStats() {
+      readStats();
+      return { count: 1, lastUpdate: Date.now() };
+    },
+  });
+  mgr.register(makeLayer('alpha', 101, () => { alphaStats += 1; }));
+  mgr.register(makeLayer('beta', 202, () => { betaStats += 1; }));
+  const container = makeControlElement();
+
+  try {
+    mgr.buildTogglePanel(container);
+    assert.equal(await mgr.setEnabled('alpha', true), true);
+    assert.equal(await mgr.setEnabled('beta', true), true);
+
+    alphaStats = 0;
+    betaStats = 0;
+    timers.get(101).callback();
+    assert.equal(alphaStats, 1, 'the timer queries its own layer once');
+    assert.equal(betaStats, 0, 'the timer never queries an unrelated layer');
+
+    alphaStats = 0;
+    betaStats = 0;
+    globalThis.document.hidden = true;
+    timers.get(101).callback();
+    assert.equal(alphaStats, 0, 'hidden tabs do not perform row stats work');
+    assert.equal(betaStats, 0);
+    assert.equal(mgr._panelRefreshPendingOnVisible, true);
+
+    globalThis.document.hidden = false;
+    mgr._refreshTogglePanel();
+    assert.equal(alphaStats, 1, 'visibility catch-up refreshes alpha');
+    assert.equal(betaStats, 1, 'visibility catch-up refreshes beta');
+
+    const staleAlphaTimer = timers.get(101).callback;
+    assert.equal(await mgr.destroyLayer('alpha'), true);
+    alphaStats = 0;
+    betaStats = 0;
+    staleAlphaTimer();
+    assert.equal(alphaStats, 0, 'a stale callback is inert after teardown');
+    assert.equal(betaStats, 0, 'stale callback cannot spill into another row');
+  } finally {
+    await mgr.destroyAll();
+    globalThis.setInterval = originalSetInterval;
+    globalThis.clearInterval = originalClearInterval;
     if (originalDocument === undefined) delete globalThis.document;
     else globalThis.document = originalDocument;
   }

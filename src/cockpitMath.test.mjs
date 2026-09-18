@@ -8,6 +8,7 @@ import {
   cockpitAnchorCorrectionStep,
   cockpitAltitudeDisplayFt,
   cockpitGroundSafeHeight,
+  cockpitSignalRenderSignature,
   cockpitSurfaceWaitExpired,
   cockpitUiUpdateDue,
   compassDivisions,
@@ -30,6 +31,44 @@ test('cockpit presentation updates are throttled independently of camera frames'
   assert.equal(cockpitUiUpdateDue(1099, 1000, 100), false);
   assert.equal(cockpitUiUpdateDue(1100, 1000, 100), true);
   assert.equal(cockpitUiUpdateDue(10, 1000, 100), true);
+});
+
+test('cockpit signal render signature is stable for equivalent row data', () => {
+  const row = {
+    key: 'flight:military:abc123',
+    tone: 'nearby military',
+    title: 'RAVEN1',
+    detail: 'MILITARY FLIGHT · 12.4 KM',
+    target: { layerId: 'military', id: 'abc123' },
+    timestamp: 123456,
+  };
+  assert.equal(
+    cockpitSignalRenderSignature([row]),
+    cockpitSignalRenderSignature([{ ...row, target: { ...row.target } }]),
+  );
+  assert.equal(cockpitSignalRenderSignature([]), '');
+});
+
+test('cockpit signal render signature changes for visible/actionable row changes', () => {
+  const base = {
+    key: 'flight:flights:abc123',
+    tone: 'nearby',
+    title: 'TEST1',
+    detail: 'COMMERCIAL FLIGHT · 8.2 KM',
+    target: { layerId: 'flights', id: 'abc123' },
+    timestamp: 99,
+  };
+  const signature = cockpitSignalRenderSignature([base]);
+  for (const changed of [
+    { ...base, title: 'TEST2' },
+    { ...base, detail: 'COMMERCIAL FLIGHT · 9.0 KM' },
+    { ...base, tone: 'warning' },
+    { ...base, target: { layerId: 'military', id: 'abc123' } },
+    { ...base, target: { layerId: 'flights', id: 'def456' } },
+    { ...base, timestamp: 100 },
+  ]) {
+    assert.notEqual(cockpitSignalRenderSignature([changed]), signature);
+  }
 });
 
 test('grounded cockpit surface acquisition has a bounded wait', () => {

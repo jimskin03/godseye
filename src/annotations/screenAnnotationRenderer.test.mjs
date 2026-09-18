@@ -32,6 +32,7 @@ class FakeElement {
   constructor(tagName) {
     this.tagName = tagName;
     this.attributes = new Map();
+    this.attributeWriteCount = 0;
     this.children = [];
     this.parentNode = null;
     this.style = {};
@@ -40,6 +41,7 @@ class FakeElement {
   }
 
   setAttribute(name, value) {
+    this.attributeWriteCount += 1;
     this.attributes.set(name, String(value));
     if (name === 'class') this.classList.reset(value);
   }
@@ -255,6 +257,63 @@ test('annotation fade consumes the actual tracked host paint rectangle after lay
   assert.ok(
     Number(group.getAttribute('opacity')) < 1,
     'final annotation bbox fades against the complete painted card rectangle',
+  );
+  renderer.destroy();
+});
+
+test('steady annotation frames avoid redundant SVG attribute writes', (t) => {
+  const originalDocument = globalThis.document;
+  const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+  const originalProjection = Cesium.SceneTransforms.worldToWindowCoordinates;
+  globalThis.document = fakeDocument();
+  globalThis.requestAnimationFrame = (callback) => { callback(); return 1; };
+  Cesium.SceneTransforms.worldToWindowCoordinates = () => ({ x: 120, y: 160 });
+  t.after(() => {
+    Cesium.SceneTransforms.worldToWindowCoordinates = originalProjection;
+    if (originalDocument === undefined) delete globalThis.document;
+    else globalThis.document = originalDocument;
+    if (originalRequestAnimationFrame === undefined) delete globalThis.requestAnimationFrame;
+    else globalThis.requestAnimationFrame = originalRequestAnimationFrame;
+  });
+
+  const positionWC = Cesium.Cartesian3.fromDegrees(0, 0, 1000);
+  const directionWC = Cesium.Cartesian3.normalize(
+    Cesium.Cartesian3.negate(positionWC, new Cesium.Cartesian3()),
+    new Cesium.Cartesian3(),
+  );
+  const camera = { positionWC, directionWC, positionCartographic: { height: 1000 } };
+  const scene = {
+    camera,
+    canvas: { clientWidth: 800, clientHeight: 600, width: 800, height: 600 },
+    clampToHeightSupported: false,
+    postRender: { addEventListener() {}, removeEventListener() {} },
+  };
+  const renderer = createScreenAnnotationRenderer(
+    { scene, camera, trackedEntity: null },
+    { activeTrackedReadoutId: () => null, overlayPaintRect: () => null },
+  );
+  renderer.add({
+    id: 'anno-static',
+    type: 'label',
+    color: 'primary',
+    label: 'STATIC',
+    alpha: 1,
+    anchor: { lon: 0, lat: 0, height: 0 },
+  });
+
+  const { svg, group } = findAnnotationGroup(globalThis.document);
+  const dot = group.querySelector('.gev-anno-dot');
+  const leader = group.querySelector('.gev-anno-leader');
+  const callout = group.querySelector('.gev-anno-callout');
+  const before = [svg, group, dot, leader, callout].map((node) => node.attributeWriteCount);
+
+  renderer.sync();
+  renderer.sync();
+
+  assert.deepEqual(
+    [svg, group, dot, leader, callout].map((node) => node.attributeWriteCount),
+    before,
+    'unchanged projection and camera state perform no equivalent SVG writes',
   );
   renderer.destroy();
 });
