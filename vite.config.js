@@ -7458,12 +7458,14 @@ export default defineConfig(({ mode }) => {
       googlePlacesContextProxy(),
     ],
     server: {
-      host: env.HOST || 'localhost',
+      host: env.HOST || (env.PORT || env.RENDER ? '0.0.0.0' : 'localhost'),
       port: parseInt(env.PORT, 10) || 5173,
-      // When binding to all interfaces, allow any host; otherwise restrict to local names
-      allowedHosts: (env.HOST === '0.0.0.0' || env.HOST === '::')
-        ? true
-        : ['localhost', '127.0.0.1', '.local'],
+      allowedHosts: true,
+    },
+    preview: {
+      host: env.HOST || (env.PORT || env.RENDER ? '0.0.0.0' : 'localhost'),
+      port: parseInt(env.PORT, 10) || 5173,
+      allowedHosts: true,
     },
     // Expose selected API keys to the browser via import.meta.env.*
     define: {
