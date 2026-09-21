@@ -24,6 +24,7 @@ COPY --from=builder /app/config ./config
 COPY --from=builder /app/index.html ./index.html
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/style.css ./style.css
+COPY --from=builder /app/server.mjs ./server.mjs
 
 ENV HOST=0.0.0.0
 ENV PORT=5173
@@ -35,4 +36,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=5 \
   CMD wget --quiet --tries=1 --spider http://127.0.0.1:${PORT}/ || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "./node_modules/.bin/vite --host 0.0.0.0 --port ${PORT}"]
+CMD ["node", "server.mjs"]
