@@ -1,30 +1,38 @@
-# Build stage
-FROM node:26-alpine AS builder
-
+FROM node:26-alpine AS dependencies
 WORKDIR /app
-
-COPY package*.json ./
+COPY package.json package-lock.json ./
 RUN npm ci
 
+FROM dependencies AS builder
+ARG GOOGLE_MAPS_API_KEY
+ARG CESIUM_ION_TOKEN
+ENV GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+ENV CESIUM_ION_TOKEN=${CESIUM_ION_TOKEN}
 COPY . .
 RUN npm run build
 
-# Production stage
-FROM node:26-alpine
-
+FROM node:26-alpine AS runtime
 WORKDIR /app
-
-# Install dumb-init and http-server for proper signal handling and serving
-RUN apk add --no-cache dumb-init && npm install -g http-server
-
+ENV NODE_ENV=production
+RUN apk add --no-cache dumb-init
+COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
-COPY public ./public
-COPY index.html style.css ./
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/vite.config.js ./vite.config.js
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/config ./config
+COPY --from=builder /app/index.html ./index.html
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/style.css ./style.css
+
+ENV HOST=0.0.0.0
+ENV PORT=5173
 
 EXPOSE 5173
+EXPOSE 10000
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://127.0.0 || exit 1
+HEALTHCHECK --interval=20s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://127.0.0.1:${PORT}/ || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["http-server", "dist", "-p", "5173", "-a", "0.0.0.0", "--gzip"]
+CMD ["sh", "-c", "./node_modules/.bin/vite --host 0.0.0.0 --port ${PORT}"]
