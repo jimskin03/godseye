@@ -6719,28 +6719,75 @@ select optgroup {
 
 #scene-runtime {
   position: fixed;
-  top: 34px;
+  top: max(16px, calc(env(safe-area-inset-top) + 12px));
   left: 50%;
   transform: translateX(-50%);
-  z-index: 105;
+  z-index: 310;
   opacity: 0;
   visibility: hidden;
   transition: opacity 180ms ease, visibility 180ms ease;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
   color: #bff4ff;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(0, 212, 255, 0.36);
+  background: rgba(8, 20, 30, 0.92);
+  border: 1px solid rgba(0, 212, 255, 0.45);
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 4px 6px 4px 14px;
   text-shadow: 0 0 8px rgba(0, 212, 255, 0.55);
-  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 12px rgba(0, 212, 255, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
 }
 
 #scene-runtime.active {
   opacity: 1;
   visibility: visible;
+}
+
+.scene-runtime-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scene-runtime-stop-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 80, 80, 0.65);
+  background: rgba(220, 38, 38, 0.3);
+  color: #ffc9c9;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.scene-runtime-stop-btn:hover,
+.scene-runtime-stop-btn:active {
+  background: rgba(220, 38, 38, 0.65);
+  border-color: #ff4d4d;
+  color: #ffffff;
+  transform: scale(1.03);
+}
+
+.scene-runtime-stop-btn .material-symbols-outlined {
+  font-size: 14px;
+  line-height: 1;
 }
 
 #control-panel.collapsed .button-grid,
@@ -6823,6 +6870,8 @@ body.recording-mode #cctv-panel,
 body.recording-mode #radio-panel,
 body.recording-mode #global-context-panel,
 body.recording-mode #gev-voice-control,
+body.recording-mode #mobile-controls-toggle,
+body.recording-mode #mobile-controls,
 body.recording-mode #scene-panel {
   opacity: 0 !important;
   visibility: hidden !important;
@@ -6836,6 +6885,10 @@ body.recording-mode #scene-runtime.active {
 
 /* Scene playback owns layer and camera sequencing until Stop or completion. */
 body.scene-playback-mode :is(#clear-selected-layers, #reset-globe-view) {
+  display: none !important;
+}
+
+body.scene-playback-mode :is(#mobile-controls-toggle, #mobile-controls) {
   display: none !important;
 }
 
@@ -9477,6 +9530,20 @@ body.scene-playback-mode #first-run-launcher {
   #mobile-controls-toggle[aria-expanded='true'] {
     color: var(--accent);
     border-color: var(--accent);
+  }
+
+  #scene-runtime {
+    top: max(10px, calc(env(safe-area-inset-top) + 6px));
+    padding: 3px 5px 3px 10px;
+    font-size: 10px;
+    gap: 8px;
+    max-width: calc(100vw - 20px);
+  }
+
+  .scene-runtime-stop-btn {
+    min-height: 44px;
+    padding: 6px 14px;
+    font-size: 11px;
   }
 
   #mobile-controls {

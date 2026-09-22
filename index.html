@@ -848,7 +848,13 @@
 
   </div>
 
-  <div id="scene-runtime"></div>
+  <div id="scene-runtime" class="scene-runtime" role="status" aria-live="polite">
+    <span id="scene-runtime-label" class="scene-runtime-label"></span>
+    <button id="scene-runtime-stop-btn" class="scene-runtime-stop-btn" type="button" aria-label="Exit scene and return to main menu" title="Exit scene (Esc)">
+      <span class="material-symbols-outlined" aria-hidden="true">close</span>
+      <span>EXIT SCENE</span>
+    </button>
+  </div>
 
   <!-- Explicit mission choice on a fresh session. Live feeds are not auto-enabled
        until the visitor asks; shared links skip this surface entirely. It returns

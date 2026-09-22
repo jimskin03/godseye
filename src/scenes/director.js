@@ -342,6 +342,8 @@ export class SceneDirector {
     this._sceneStatus = document.getElementById('scene-status');
     this._sceneProgressFill = document.getElementById('scene-progress-fill');
     this._sceneRuntime = document.getElementById('scene-runtime');
+    this._sceneRuntimeLabel = document.getElementById('scene-runtime-label');
+    this._sceneRuntimeStopBtn = document.getElementById('scene-runtime-stop-btn');
 
     this._initUI();
   }
@@ -443,6 +445,15 @@ export class SceneDirector {
 
     this._sceneDownloadBtn?.addEventListener('click', () => {
       this.downloadLastRunMetadata();
+    });
+
+    this._sceneRuntimeStopBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.stopScene('Stopped by user');
+    });
+
+    this._sceneRuntime?.addEventListener('click', () => {
+      this.stopScene('Stopped by user');
     });
 
     this._updateStatus('Ready');
@@ -914,6 +925,23 @@ export class SceneDirector {
     this._runAbort = new AbortController();
     this._runToken = { cancelled: false, signal: this._runAbort.signal };
     const token = this._runToken;
+    // Close mobile controls drawer if open so it does not obstruct the cinematic playback
+    if (typeof this.styleManager?.closeMobileControls === 'function') {
+      this.styleManager.closeMobileControls();
+    } else {
+      const mobileDrawer = document.getElementById('mobile-controls');
+      if (mobileDrawer?.classList.contains('mobile-controls-open')) {
+        mobileDrawer.classList.remove('mobile-controls-open');
+        document.body.classList.remove('mobile-controls-open');
+        const toggle = document.getElementById('mobile-controls-toggle');
+        if (toggle) {
+          toggle.setAttribute('aria-expanded', 'false');
+          toggle.setAttribute('aria-label', 'Open map controls');
+        }
+        mobileDrawer.inert = true;
+      }
+    }
+
     this.styleManager.setRecordingMode(true, {
       hidePanels: true,
       hudMode: 'full',
@@ -1361,7 +1389,11 @@ export class SceneDirector {
    */
   _updateRuntime(text) {
     if (!this._sceneRuntime) return;
-    this._sceneRuntime.textContent = text;
+    if (this._sceneRuntimeLabel) {
+      this._sceneRuntimeLabel.textContent = text;
+    } else {
+      this._sceneRuntime.textContent = text;
+    }
     this._sceneRuntime.classList.toggle('active', !!text);
   }
 

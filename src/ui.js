@@ -4050,8 +4050,19 @@ export class StyleManager {
         drawer.inert = !drawer.classList.contains('mobile-controls-open');
       }
     };
+    this._setMobileControlsOpen = setOpen;
     mobileControlsMedia.addEventListener?.('change', syncResponsiveMode);
     syncResponsiveMode();
+  }
+
+  /**
+   * Close the mobile drawer if open, optionally returning focus.
+   * @param {object} [options]
+   * @param {boolean} [options.returnFocus=false]
+   * @returns {void}
+   */
+  closeMobileControls({ returnFocus = false } = {}) {
+    this._setMobileControlsOpen?.(false, { returnFocus });
   }
 
   /**
@@ -7918,6 +7929,9 @@ export class StyleManager {
       ? forceEnabled
       : !document.body.classList.contains('ui-clean-view');
     document.body.classList.toggle('ui-clean-view', shouldEnable);
+    if (shouldEnable) {
+      this.closeMobileControls();
+    }
     if (this._cleanViewBtn) {
       this._cleanViewBtn.classList.toggle('active', shouldEnable);
     }
@@ -9004,6 +9018,9 @@ export class StyleManager {
     this._recordingConfig = { hidePanels, hudMode, safeFrame };
 
     document.body.classList.toggle('recording-mode', this._recordingMode && hidePanels);
+    if (this._recordingMode && hidePanels) {
+      this.closeMobileControls();
+    }
 
     if (this._safeFrameOverlay) {
       this._safeFrameOverlay.classList.remove('ratio-9-16', 'ratio-16-9');
